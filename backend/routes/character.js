@@ -7,5 +7,6 @@ router.use(requireUser);
 
 router.post("/interactions", characterController.createInteraction);
 router.get("/interactions", characterController.getInteractions);
+router.get("/level", characterController.getLevel);
 
 module.exports = router;

@@ -64,7 +64,17 @@ async function getInteractions(req, res) {
   }
 }
 
+async function getLevel(req, res) {
+  try {
+    const data = await characterService.getLevel(req.user.id);
+    res.json({ message: "캐릭터 레벨 조회 성공", data });
+  } catch (error) {
+    res.status(500).json({ message: "캐릭터 레벨 조회 실패", error: error.message });
+  }
+}
+
 module.exports = {
   createInteraction,
-  getInteractions
+  getInteractions,
+  getLevel
 };

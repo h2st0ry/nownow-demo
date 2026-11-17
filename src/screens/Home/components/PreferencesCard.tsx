@@ -9,7 +9,6 @@ import {
   type DeliveryApp,
 } from '../../../services/delivery/deliveryApps';
 import {useAppTheme} from '../../../theme/ThemeProvider';
-import {interactionActions} from '../constants/homeContent';
 import MusicRecommendation from './MusicRecommendation';
 import type {PreferenceKey, UserPreferences} from '../types';
 
@@ -52,7 +51,7 @@ function DeliveryButtons() {
   );
 }
 
-// 오늘 고른 것들. 먹이·음악을 누르면 아래에서 창이 올라와 배달앱·추천곡을 보여 준다.
+// 밥주기·음악을 고르면 아래에서 올라오는 창: 배달앱·추천곡
 export default function PreferencesCard({
   preferences,
   detailKey,
@@ -61,38 +60,10 @@ export default function PreferencesCard({
 }: PreferencesCardProps) {
   const {theme} = useAppTheme();
   const insets = useSafeAreaInsets();
-  const chosen = interactionActions.filter(({key}) => preferences[key]);
-
-  if (chosen.length === 0) {
-    return null;
-  }
-
   const detailChoice = detailKey ? preferences[detailKey] : undefined;
 
   return (
     <>
-      <View style={styles.chips}>
-        {chosen.map(({key, emoji}) => (
-          <Pressable
-            key={key}
-            disabled={!hasDetail(key)}
-            onPress={() => setDetailKey(key)}
-            style={({pressed}) => [
-              styles.chip,
-              {backgroundColor: theme.surface},
-              pressed && styles.pressed,
-            ]}>
-            <Text style={styles.chipEmoji}>{emoji}</Text>
-            <Text numberOfLines={1} style={[styles.chipLabel, {color: theme.text}]}>
-              {preferences[key]}
-            </Text>
-            {hasDetail(key) && (
-              <Text style={[styles.chipMore, {color: theme.textMuted}]}>›</Text>
-            )}
-          </Pressable>
-        ))}
-      </View>
-
       <Modal
         animationType="slide"
         navigationBarTranslucent
@@ -131,31 +102,6 @@ export default function PreferencesCard({
 }
 
 const styles = StyleSheet.create({
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    alignItems: 'center',
-    borderRadius: 16,
-    flexDirection: 'row',
-    gap: 5,
-    maxWidth: '100%',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  chipEmoji: {
-    fontSize: 14,
-  },
-  chipLabel: {
-    flexShrink: 1,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  chipMore: {
-    fontSize: 15,
-  },
   backdrop: {
     backgroundColor: 'rgba(0,0,0,0.35)',
     flex: 1,
