@@ -7,7 +7,9 @@ async function createMessage({ user_id, chat_role, message }) {
       {
         user_id,
         chat_role,
-        message
+        message,
+        // DB에 기본값이 없어서 시각을 직접 넣는다. 빠지면 오늘 대화·레벨 계산에서 안 보인다.
+        created_at: new Date().toISOString()
       }
     ])
     .select()

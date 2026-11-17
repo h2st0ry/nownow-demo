@@ -1,8 +1,10 @@
-import {useEffect, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 
 import {
+  getCharacterLevel,
   getTodayInteractions,
   saveInteraction,
+  type CharacterLevel,
 } from '../../../services/api/character';
 import {
   pickDailyOptions,
@@ -29,6 +31,14 @@ export const useCharacterHome = () => {
     null,
   );
   const [currentOptions, setCurrentOptions] = useState<PreferenceOption[]>([]);
+  const [level, setLevel] = useState<CharacterLevel | null>(null);
+
+  // 서버가 채팅·돌보기 기록으로 계산한 레벨을 다시 받아 온다.
+  const refreshLevel = useCallback(() => {
+    getCharacterLevel()
+      .then(setLevel)
+      .catch(error => console.log('[character] 레벨 불러오기 실패:', error));
+  }, []);
 
   // 오늘 이미 고른 취향을 불러와 앱을 다시 켜도 "함께한 것들"이 남아 있게 한다.
   useEffect(() => {
@@ -68,9 +78,9 @@ export const useCharacterHome = () => {
     setIsInteracting(true);
     setUserPreferences(prev => ({...prev, [selectedAction]: choice}));
     // 저장이 실패해도 화면 반응은 그대로 두고 로그만 남긴다.
-    saveInteraction(selectedAction, choice).catch(error =>
-      console.log('[character] 취향 저장 실패:', error),
-    );
+    saveInteraction(selectedAction, choice)
+      .then(refreshLevel)
+      .catch(error => console.log('[character] 취향 저장 실패:', error));
     setSelectedAction(null);
     setCurrentOptions([]);
 
@@ -95,6 +105,8 @@ export const useCharacterHome = () => {
     userPreferences,
     selectedAction,
     currentOptions,
+    level,
+    refreshLevel,
     handleActionSelect,
     handleOptionSelect,
     handleCancelOptions,
