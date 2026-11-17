@@ -8,6 +8,7 @@ router.use(requireUser);
 
 // 리포트 화면 집계. "/:health_record_id"보다 먼저 등록해야 경로가 id로 잡히지 않는다.
 router.get("/stress-causes", insightController.getStressCauses);
+router.get("/stress-analysis", insightController.getStressAnalysis);
 router.get("/recommendation", insightController.getRecommendation);
 router.post("/ai-recommendation", insightController.createAiRecommendation);
 router.get("/weekly", insightController.getWeeklyReports);

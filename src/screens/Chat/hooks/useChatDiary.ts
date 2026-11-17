@@ -230,8 +230,11 @@ export const useChatDiary = (mood?: MoodType | null) => {
         setBusy(true);
         setError('');
         const keywords = [...new Set([...manualKeywords.slice(0, 9), analysis.keywords[0] ?? '일상', ...analysis.keywords, ...manualKeywords])].slice(0, 10);
+        // 서버가 AI로 다시 요약해 저장한다. 실패하면 서버도 이 규칙 요약을 그대로 저장한다.
+        let shownSummary = analysis.summary;
         try {
-          await saveChatSummary(chatId, analysis.summary, keywords);
+          const saved = await saveChatSummary(chatId, analysis.summary, keywords);
+          if (saved?.summary?.trim()) shownSummary = saved.summary;
           summarizedId.current = chatId;
         } catch (failure) {
           setError(failure instanceof Error ? failure.message : '요약을 저장하지 못했어요. 다시 시도해 주세요.');
@@ -244,7 +247,7 @@ export const useChatDiary = (mood?: MoodType | null) => {
         appendMessages(
           createMessage(
             'bot',
-            `${analysis.summary}\n\n${
+            `${shownSummary}\n\n${
               chatScript.keywordsLabel
             }: ${keywords.join(', ') || '추가한 키워드 없음'}`,
           ),

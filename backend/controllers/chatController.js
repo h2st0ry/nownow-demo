@@ -2,8 +2,12 @@ const chatService = require("../services/chatService");
 const chatRelayService = require("../services/chatRelayService");
 const { createRateLimiter, parseChatRequest } = require("../utils/chatRelay");
 const { getContext } = require("../services/healthContextService");
-const { findChatMemories } = require("../services/chatMemorySearch");
-const { groundedPrompt } = require("../../shared/healthRetrieval");
+const { findChatMemories, indexSummary } = require("../services/chatMemorySearch");
+const { summarizeDay } = require("../services/chatSummaryAi");
+const { getDailyStress } = require("../services/stressService");
+const { healthSnapshot } = require("../services/stressCauseAnalysis");
+const { getStressAnalysis } = require("../services/insightService");
+const { groundedPrompt, memoryPrompt } = require("../../shared/healthRetrieval");
 const { personalizationHint } = require("../utils/personalization");
 const { healthSafetyReply } = require("../../shared/careSafety");
 const { kstDayRange, kstToday } = require("../utils/kstDate");
@@ -106,12 +110,44 @@ async function createSummary(req, res) {
       });
     }
 
+    // 오늘 대화로 AI 요약(+ 상황·감정·분류)을 만들고, 그날 건강 수치도 같이 구한다.
+    // 키가 없거나 실패하면 앱이 보낸 요약을 그대로 쓴다.
+    const today = kstToday();
+    const { start } = kstDayRange(today);
+    const [ai, daily] = await Promise.all([
+      chatService.getMessagesSince(req.user.id, start)
+        .then(summarizeDay)
+        .catch(error => {
+          console.log("[chat] AI 요약 실패:", error.message);
+          return null;
+        }),
+      getDailyStress(req.user.id, today).catch(() => null)
+    ]);
+
+    // AI가 고른 원인 분류를 키워드에 더한다(리포트 원인 통계에도 반영). '일상'만 있었으면 바꾼다.
+    let savedKeywords = keywords;
+    if (ai?.category && ai.category !== "일상" && !keywords.includes(ai.category)) {
+      savedKeywords = [...keywords.filter(word => word !== "일상"), ai.category].slice(0, 10);
+    }
+
     const data = await chatService.createSummary({
       chat_id,
       user_id: req.user.id,
-      summary,
-      keywords
+      summary: ai?.summary ?? summary,
+      keywords: savedKeywords
     });
+
+    // 과거 기억 검색·원인 분석용 임베딩. 실패해도 요약 저장은 성공으로 두고, 검색할 때 다시 만든다.
+    const metadata = {
+      date: today,
+      keywords: savedKeywords,
+      summary_type: ai ? "ai" : "rule",
+      ...(ai && { situation: ai.situation, emotion: ai.emotion, category: ai.category }),
+      health: healthSnapshot(daily)
+    };
+    await indexSummary(req.user.id, data.summary_id, data.summary, metadata).catch(error =>
+      console.log("[chat] 요약 임베딩 실패:", error.message)
+    );
 
     res.status(201).json({
       message: "채팅 요약 저장 성공",
@@ -184,18 +220,43 @@ function parseReplyBody(body) {
   return { message, error, saveUserMessage: true };
 }
 
+const asksStressCause = message =>
+  /스트레스.{0,12}(원인|이유|뭐\s*때문)|(원인|이유).{0,8}스트레스|왜.{0,8}스트레스/.test(message);
+
+function stressCauseReply(analysis) {
+  if (analysis.status !== "found") {
+    return `${analysis.message} 지금까지 하루 정리 ${analysis.summaryDays}일, 스트레스 점수가 있는 날 ${analysis.scoredDays}일 모였어. 🌱`;
+  }
+  const [top, ...rest] = analysis.causes;
+  const others = rest.slice(0, 2).map(cause => `'${cause.label}'(+${cause.diff}점)`);
+  return `내가 지금까지 기록을 같이 봤는데, ${top.conclusion}` +
+    (others.length ? ` 그다음으로는 ${others.join(", ")} 쪽도 스트레스가 높았어.` : "") +
+    " 이건 기록으로 본 경향이라 진단은 아니야. 😊";
+}
+
 // 답변만 만든다. 저장은 reply()가 한다. 반환: { reply, suggestion? }
 async function generateReply(req, message, history) {
   if (explainsScore(message)) return { reply: SCORE_EXPLANATION };
 
-  let prompt = message;
+  // "내 스트레스 원인이 뭐야?" → 대화 요약 + 건강 수치로 계산한 결론을 그대로 알려 준다(AI가 지어내지 않게).
+  if (asksStressCause(message)) {
+    const analysis = await getStressAnalysis(req.user.id).catch(() => null);
+    if (analysis) return { reply: stressCauseReply(analysis) };
+  }
+
   let suggestion;
-  if (req.body.useHealthContext === true) {
+  // 답할 때마다 비슷한 과거 하루 요약을 찾는다(pgvector). 충분히 비슷한 게 없으면 빈 목록.
+  const memoriesPromise = findChatMemories(req.user.id, message).catch(error => {
+    console.log("[chat] 과거 기억 검색 실패:", error.message);
+    return [];
+  });
+  let prompt;
+  if (req.body.useHealthContext !== true) {
+    prompt = memoryPrompt(message, await memoriesPromise);
+  } else {
     const [context, memories] = await Promise.all([
       getContext(req.user.id, message).catch(() => null),
-      /예전|이전|전에|지난|요약|기억|원인|키워드/.test(message)
-        ? findChatMemories(req.user.id, message).catch(() => [])
-        : [],
+      memoriesPromise,
     ]);
     const today = kstToday();
     const safety = healthSafetyReply(message, context, today);
