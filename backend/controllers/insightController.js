@@ -118,6 +118,23 @@ async function getWeeklyReport(req, res) {
   }
 }
 
+// 월간 리포트. month는 YYYY-MM, 아직 시작하지 않은 달은 거절한다.
+async function getMonthlyReport(req, res) {
+  try {
+    const { month } = req.params;
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      return res.status(400).json({ message: "month는 YYYY-MM 형식이어야 합니다." });
+    }
+    if (`${month}-01` > kstToday()) {
+      return res.status(400).json({ message: "아직 시작하지 않은 달입니다." });
+    }
+    const data = await insightService.getMonthlyReport(req.user.id, month);
+    res.json({ message: "월간 리포트 조회 성공", data });
+  } catch (error) {
+    res.status(500).json({ message: "월간 리포트 조회 실패", error: error.message });
+  }
+}
+
 // 대화 요약 + 건강 수치로 낸 스트레스 원인 결론
 async function getStressAnalysis(req, res) {
   try {
@@ -129,6 +146,7 @@ async function getStressAnalysis(req, res) {
 }
 
 module.exports = {
+  getMonthlyReport,
   createAiRecommendation,
   getStressAnalysis,
   getStressCauses,

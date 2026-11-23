@@ -10,6 +10,7 @@ import type {
 export const reportTabs: {key: ReportTab; label: string}[] = [
   {key: 'daily', label: '실시간 리포트'},
   {key: 'weekly', label: '주간 리포트'},
+  {key: 'monthly', label: '월간 리포트'},
 ];
 
 export const stressPeriodOptions: {key: StressPeriod; label: string}[] = [
