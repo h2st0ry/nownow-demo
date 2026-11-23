@@ -10,7 +10,8 @@ interface CharacterPetProps {
 }
 
 // 캐릭터 그림. 팀원이 새 캐릭터 파일을 주면 이 파일만 바꾸면 된다.
-const characterImage = require('../../../assets/images/charactor.png');
+// character.png: 3D 캐릭터 시트(KakaoTalk_20261116_160558851.png)의 정면 컷, 배경 투명
+const characterImage = require('../../../assets/images/character.png');
 
 const IDLE_DURATION = 1400;
 

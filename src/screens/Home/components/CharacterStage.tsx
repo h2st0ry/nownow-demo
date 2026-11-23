@@ -5,6 +5,7 @@ import {useAppTheme} from '../../../theme/ThemeProvider';
 import type {MoodType} from '../types';
 import CharacterMessage from './CharacterMessage';
 import CharacterPet from './CharacterPet';
+import RoomDecor from './RoomDecor';
 
 interface CharacterStageProps {
   mood: MoodType;
@@ -16,10 +17,10 @@ interface CharacterStageProps {
   children?: React.ReactNode;
 }
 
-// 방 색. 다크 모드에서는 어둡게 바꾼다.
+// 방 색(벽·캐릭터 그림자). 벽지·창문·바닥 등 꾸밈은 RoomDecor가 그린다.
 const ROOM = {
-  light: {wall: '#F8FBF5', floor: '#DCEBD2', shadow: '#C3D8B6'},
-  dark: {wall: '#252722', floor: '#30332D', shadow: '#1E201B'},
+  light: {wall: '#F8FBF5', shadow: '#BEDCA3'},
+  dark: {wall: '#252722', shadow: '#1E201B'},
 };
 
 // 돌봐 주면 떠오르는 하트 (가로 위치, 늦게 출발하는 정도)
@@ -59,7 +60,7 @@ export default function CharacterStage({
 
   return (
     <View style={[styles.room, {backgroundColor: room.wall, height}]}>
-      <View style={[styles.floor, {backgroundColor: room.floor}]} />
+      <RoomDecor mode={theme.mode} />
 
       {children}
 
@@ -112,18 +113,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingTop: 16,
   },
-  floor: {
-    bottom: 0,
-    height: '28%',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-  },
   content: {
     alignItems: 'center',
     flex: 1,
     justifyContent: 'flex-end',
-    paddingBottom: 18,
+    // 캐릭터(와 말풍선)를 바닥에서 띄우는 정도
+    paddingBottom: 60,
   },
   characterArea: {
     alignItems: 'center',
