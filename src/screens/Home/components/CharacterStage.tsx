@@ -11,7 +11,7 @@ import RoomDecor from './RoomDecor';
 interface CharacterStageProps {
   mood: MoodType;
   isInteracting: boolean;
-  height: number;
+  minHeight: number;
   // 선택지가 열려 방이 작아지면 말풍선이 아이콘 줄을 덮어서 숨긴다.
   hideMessage?: boolean;
   // 방 위쪽에 놓을 것(행동 아이콘 줄)
@@ -35,7 +35,7 @@ const HEARTS = [
 export default function CharacterStage({
   mood,
   isInteracting,
-  height,
+  minHeight,
   hideMessage = false,
   children,
 }: CharacterStageProps) {
@@ -60,7 +60,7 @@ export default function CharacterStage({
   }, [heartAnims, isInteracting]);
 
   return (
-    <View style={[styles.room, {backgroundColor: room.wall, height}]}>
+    <View style={[styles.room, {backgroundColor: room.wall, minHeight}]}>
       <RoomDecor mode={theme.mode} />
 
       {children}
@@ -111,6 +111,7 @@ export default function CharacterStage({
 const styles = StyleSheet.create({
   // 둥근 카드 테두리 없이 화면 가로 끝까지 채운다(홈 화면 좌우 여백만큼 바깥으로).
   room: {
+    flexGrow: 1,
     marginHorizontal: -SCREEN_HORIZONTAL_PADDING,
     overflow: 'hidden',
     paddingTop: 16,
