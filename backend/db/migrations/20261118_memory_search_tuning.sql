@@ -1,4 +1,4 @@
--- 과거 기억 검색 다듬기. (아직 Supabase에 실행하지 않음 — 실행 전 팀 확인)
+-- 과거 기억 검색 다듬기. Supabase 대시보드 > SQL Editor에 붙여넣고 Run.
 begin;
 set local search_path = public, extensions;
 
@@ -7,14 +7,16 @@ set local search_path = public, extensions;
 alter table public.chat_summaries
   alter column created_at set default now();
 
--- 2) 비슷한 기억 기준을 코사인 거리 0.7 → 0.5로 좁힌다.
---    이제 매 답변마다 기억을 찾으므로, 0.7이면 관련 없는 요약이 자주 붙는다.
+-- 2) 검색 범위를 "최근 30일 중 12개"에서 사용자의 전체 기록으로 넓힌다.
+--    날짜가 없는 옛 요약도 찾는다.
+-- 3) 비슷한 기억 기준을 코사인 거리 0.7 → 0.5로 좁힌다.
 --    (실측: 관련 있는 요약 0.32~0.46, 관련 없는 요약 0.52~0.60)
---    서버는 인자 3개로 부르므로 바꾸기 전·후 모두 그대로 동작한다.
 drop function if exists public.match_nownow_chat_memories(uuid, vector, bigint[]);
+drop function if exists public.match_nownow_chat_memories(uuid, vector, bigint[], float8);
 
 create function public.match_nownow_chat_memories(
-  owner_id uuid, query_vector vector(1536), candidate_ids bigint[], max_distance float8 default 0.5
+  owner_id uuid, query_vector vector(1536),
+  max_distance float8 default 0.5, match_count int default 3
 )
 returns table (summary_id bigint, content text, created_at timestamptz)
 language sql stable security invoker
@@ -25,14 +27,13 @@ as $$
   join public.chat_summaries s on s.summary_id = m.nownow_summary_id
   where m.user_id = owner_id and s.user_id = owner_id
     and m.source_type = 'CHAT_SUMMARY'
-    and s.summary_id = any(candidate_ids)
     and m.content = left(s.summary, 800)
     and (m.embedding <=> query_vector) <= max_distance
   order by m.embedding <=> query_vector
-  limit 3;
+  limit least(greatest(match_count, 1), 10);
 $$;
 
-revoke all on function public.match_nownow_chat_memories(uuid, vector, bigint[], float8) from public, anon, authenticated;
-grant execute on function public.match_nownow_chat_memories(uuid, vector, bigint[], float8) to service_role;
+revoke all on function public.match_nownow_chat_memories(uuid, vector, float8, int) from public, anon, authenticated;
+grant execute on function public.match_nownow_chat_memories(uuid, vector, float8, int) to service_role;
 notify pgrst, 'reload schema';
 commit;

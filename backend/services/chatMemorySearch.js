@@ -1,5 +1,5 @@
 const supabase = require('../config/supabase');
-const { addDays, kstDayRange, kstDateOf, kstToday } = require('../utils/kstDate');
+const { kstDateOf } = require('../utils/kstDate');
 
 const MODEL = 'text-embedding-3-small';
 const DIMENSIONS = 1536;
@@ -45,38 +45,44 @@ async function indexSummary(userId, summaryId, summary, metadata = {}) {
   return true;
 }
 
+// 한 번에 새로 임베딩할 요약 수 상한. 나머지는 다음 질문 때 이어서 채운다.
+const BACKFILL_LIMIT = 50;
+
+// 기간 제한 없이 이 사용자의 전체 요약에서 비슷한 기억을 찾는다.
 async function findChatMemories(userId, question) {
   const key = process.env.OPENAI_API_KEY;
   if (!key || !userId || !process.env.SUPABASE_SERVICE_ROLE_KEY) return [];
 
-  const {start} = kstDayRange(addDays(kstToday(), -29));
-  const {data, error} = await supabase.from('chat_summaries')
-    .select('summary_id,summary').eq('user_id', userId)
-    .gte('created_at', start).order('created_at', {ascending: false}).limit(12);
+  const [{data, error}, cached] = await Promise.all([
+    supabase.from('chat_summaries').select('summary_id,summary').eq('user_id', userId)
+      .order('summary_id', {ascending: false}),
+    supabase.from('memory_embeddings').select('nownow_summary_id,content,metadata')
+      .eq('user_id', userId).eq('source_type', 'CHAT_SUMMARY'),
+  ]);
   if (error) throw error;
+  if (cached.error) throw cached.error;
   const summaries = data.filter(row => row.summary?.trim())
     .map(row => ({id: row.summary_id, text: toContent(row.summary)}));
   if (!summaries.length) return [];
 
-  const ids = summaries.map(row => row.id);
-  const cached = await supabase.from('memory_embeddings').select('nownow_summary_id,content,metadata')
-    .eq('user_id', userId).in('nownow_summary_id', ids);
-  if (cached.error) throw cached.error;
   const indexed = new Map(cached.data.map(row => [row.nownow_summary_id, row]));
-  // 저장할 때 임베딩을 못 만든 요약(키가 없었거나 실패)은 여기서 채운다. 붙여 둔 metadata는 그대로 둔다.
+  // 저장할 때 임베딩을 못 만든 요약(키가 없었거나 실패)이나 내용이 바뀐 요약은 여기서 채운다. 붙여 둔 metadata는 그대로 둔다.
   const pending = summaries.filter(row => indexed.get(row.id)?.content !== row.text)
+    .slice(0, BACKFILL_LIMIT)
     .map(row => ({...row, metadata: indexed.get(row.id)?.metadata}));
   const [query, ...vectors] = await embed([question, ...pending.map(row => row.text)], key);
   if (pending.length) await saveEmbeddings(userId, pending, vectors);
   const matches = await supabase.rpc('match_nownow_chat_memories', {
-    owner_id: userId, query_vector: query, candidate_ids: ids,
+    owner_id: userId, query_vector: query,
   });
   if (matches.error) throw matches.error;
   // 찾은 기억에 그날 상황·건강 수치가 있으면 같이 넘겨서 "그때 잠을 4시간 잤지" 같은 말을 할 수 있게 한다.
+  // 날짜가 없는 옛 요약은 date를 빼고 넘긴다.
   return matches.data.map(row => {
     const metadata = indexed.get(row.summary_id)?.metadata ?? {};
+    const date = metadata.date ?? (row.created_at ? kstDateOf(row.created_at) : null);
     return {
-      date: metadata.date ?? kstDateOf(row.created_at),
+      ...(date && {date}),
       summary: row.content.slice(0, 180),
       ...(metadata.situation && {situation: metadata.situation}),
       ...(metadata.health && {health: metadata.health}),
