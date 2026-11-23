@@ -13,6 +13,7 @@ import StressCauseCard from './components/StressCauseCard';
 import StressAnalysisCard from './components/StressAnalysisCard';
 import TrendChart from './components/TrendChart';
 import WeeklyReport from './components/WeeklyReport';
+import MonthlyReport from './components/MonthlyReport';
 import {metricConfig} from './constants/reportData';
 import {useReport} from './hooks/useReport';
 import type {ReportTab} from './types';
@@ -254,8 +255,10 @@ export default function ReportPage() {
         analysisLoading={syncing && healthData === null}
       />
       </>
-    ) : (
+    ) : tab === 'weekly' ? (
       <WeeklyReport />
+    ) : (
+      <MonthlyReport />
     )}
       </ScrollView>
     </SafeAreaView>

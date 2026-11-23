@@ -13,6 +13,7 @@ router.get("/recommendation", insightController.getRecommendation);
 router.post("/ai-recommendation", insightController.createAiRecommendation);
 router.get("/weekly", insightController.getWeeklyReports);
 router.get("/weekly/:weekStart", insightController.getWeeklyReport);
+router.get("/monthly/:month", insightController.getMonthlyReport);
 
 router.post("/", reportController.createReport);
 router.get("/", reportController.getReports);

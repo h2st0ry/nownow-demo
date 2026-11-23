@@ -1,6 +1,6 @@
 export type MetricType = 'heartRate' | 'bloodPressure' | 'steps' | 'sleep';
 export type ReportPeriod = 'day' | 'week' | 'month';
-export type ReportTab = 'daily' | 'weekly';
+export type ReportTab = 'daily' | 'weekly' | 'monthly';
 export type StressPeriod = 'day' | 'yesterday';
 
 export interface HrvPoint {

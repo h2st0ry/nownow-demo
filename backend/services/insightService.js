@@ -141,8 +141,13 @@ const parseVector = value => (typeof value === "string" ? JSON.parse(value) : va
 async function getStressAnalysis(user_id) {
   const to = kstToday();
   const from = addDays(to, -(ANALYSIS_DAYS - 1));
+  const daily = await stressService.getDailyStressRange(user_id, from, to);
+  return analyzeRange(user_id, from, to, daily);
+}
 
-  const [summaries, embeddings, daily] = await Promise.all([
+// from~to 기간의 하루 요약과 이미 계산한 날짜별 점수(daily)로 원인 분석을 한다.
+async function analyzeRange(user_id, from, to, daily) {
+  const [summaries, embeddings] = await Promise.all([
     fetchAll(() =>
       supabase
         .from("chat_summaries")
@@ -157,8 +162,7 @@ async function getStressAnalysis(user_id) {
         .eq("user_id", user_id)
         .eq("source_type", "CHAT_SUMMARY")
         .order("nownow_summary_id")
-    ),
-    stressService.getDailyStressRange(user_id, from, to)
+    )
   ]);
 
   const vectors = new Map(embeddings.map(row => [row.nownow_summary_id, row]));
@@ -187,7 +191,94 @@ async function getStressAnalysis(user_id) {
   return { from, to, ...analyzeStressCauses(entries, health) };
 }
 
+// ---------- 월간 리포트 ----------
+const HIGH_STRESS_DAY = 70;
+const average = values => (values.length ? round1(values.reduce((sum, v) => sum + v, 0) / values.length) : null);
+const round1 = value => Math.round(value * 10) / 10;
+
+function monthRange(month) {
+  const [year, mon] = month.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year, mon, 0)).getUTCDate();
+  return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2, "0")}` };
+}
+
+function previousMonth(month) {
+  const [year, mon] = month.split("-").map(Number);
+  return mon === 1 ? `${year - 1}-12` : `${year}-${String(mon - 1).padStart(2, "0")}`;
+}
+
+// 지난달 평균은 저장된 점수로만 본다(다시 계산하지 않음). 데모 표시가 붙은 점수는 뺀다.
+async function storedAverage(user_id, from, to) {
+  const rows = await fetchAll(() =>
+    supabase
+      .from("daily_stress_scores")
+      .select("record_date, final_score, missing")
+      .eq("user_id", user_id)
+      .gte("record_date", from)
+      .lte("record_date", to)
+      .order("record_date")
+  );
+  return average(rows
+    .filter(row => row.final_score !== null && !row.missing?.includes("demo_fixture"))
+    .map(row => Number(row.final_score))
+    .filter(Number.isFinite));
+}
+
+// month: "YYYY-MM". 이번 달이면 오늘까지만.
+async function getMonthlyReport(user_id, month) {
+  const today = kstToday();
+  const range = monthRange(month);
+  const from = range.from;
+  const to = range.to < today ? range.to : today;
+  const previous = monthRange(previousMonth(month));
+
+  const [daily, summaries, previousAverageStressScore] = await Promise.all([
+    stressService.getDailyStressRange(user_id, from, to),
+    getSummaries(user_id, from, to),
+    storedAverage(user_id, previous.from, previous.to)
+  ]);
+  const analysis = await analyzeRange(user_id, from, to, daily);
+
+  const causesOf = date => countCauses(
+    summaries.filter(row => row.created_at && kstDateOf(row.created_at) === date), true
+  ).map(({ cause }) => cause);
+  const days = daily.map(day => ({
+    date: day.date,
+    finalDailyStressScore: day.finalDailyStressScore,
+    sleepMinutes: day.sleep.minutes,
+    totalSteps: day.steps.total,
+    missing: day.missing,
+    causes: causesOf(day.date)
+  }));
+  const scored = days.filter(day => day.finalDailyStressScore !== null);
+  const { averageStressScore, dayCount, peakDay } = summarizeDays(daily);
+  const causes = countCauses(summaries, true);
+
+  return {
+    month,
+    from,
+    to,
+    dayCount,
+    averageStressScore,
+    previousAverageStressScore,
+    highStressDays: scored.filter(day => day.finalDailyStressScore >= HIGH_STRESS_DAY).length,
+    averageSleepMinutes: average(days.map(day => day.sleepMinutes).filter(Number.isFinite)),
+    averageSteps: average(days.map(day => day.totalSteps).filter(Number.isFinite)),
+    peakDay,
+    days,
+    causes,
+    topCause: causes[0]?.cause ?? null,
+    analysis: {
+      status: analysis.status,
+      message: analysis.message,
+      causes: analysis.causes.map(({ label, kind, days: count, avgStress, baselineStress, diff, conclusion }) =>
+        ({ label, kind, days: count, avgStress, baselineStress, diff, conclusion }))
+    }
+  };
+}
+
 module.exports = {
+  getMonthlyReport,
   getStressAnalysis,
   getStressCauses,
   getRecommendation,
