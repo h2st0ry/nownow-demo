@@ -12,11 +12,47 @@ import ReportCard from './ReportCard';
 
 interface PeakStressDayCardProps {
   day: DailyStress;
+  // 한 줄로 납작하게 (월간 리포트 맨 위)
+  compact?: boolean;
+  // compact 카드 아래쪽에 덧붙일 내용 (월간: 원인 키워드 버튼)
+  footer?: React.ReactNode;
 }
 
-export default function PeakStressDayCard({day}: PeakStressDayCardProps) {
+export default function PeakStressDayCard({day, compact = false, footer}: PeakStressDayCardProps) {
   const {theme} = useAppTheme();
   const level = getStressLevel(day.score);
+
+  if (compact) {
+    return (
+      <ReportCard style={styles.compactCard}>
+        <Text style={[styles.compactTitle, {color: theme.text}]}>
+          가장 스트레스가 높았던 날
+        </Text>
+
+        <View style={[styles.compactBox, {backgroundColor: theme.accentMuted}]}>
+          <View style={styles.compactInfo}>
+            <Text style={[styles.compactDate, {color: theme.text}]}>
+              {format(parseISO(day.date), 'M월 d일 EEEE', {locale: ko})}
+            </Text>
+            <Text numberOfLines={1} style={[styles.compactCauses, {color: theme.textMuted}]}>
+              {day.causes.length > 0 ? day.causes.map(cause => `#${cause}`).join(' ') : '기록된 원인 없음'}
+            </Text>
+          </View>
+          <View style={styles.scoreRow}>
+            <Text style={[styles.compactScore, {color: theme[level.colorKey]}]}>
+              {day.score}
+            </Text>
+            <View style={[styles.levelBadge, {backgroundColor: theme[level.colorKey]}]}>
+              <Text style={[styles.levelText, {color: theme.surface}]}>
+                {level.label}
+              </Text>
+            </View>
+          </View>
+        </View>
+        {footer}
+      </ReportCard>
+    );
+  }
 
   return (
     <ReportCard>
@@ -163,5 +199,37 @@ const styles = StyleSheet.create({
   empty: {
     fontSize: 13,
     marginTop: 8,
+  },
+  compactCard: {
+    paddingVertical: 14,
+  },
+  compactTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  compactBox: {
+    alignItems: 'center',
+    borderRadius: 14,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  compactInfo: {
+    flex: 1,
+  },
+  compactDate: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  compactCauses: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  compactScore: {
+    fontSize: 22,
+    fontWeight: '800',
   },
 });

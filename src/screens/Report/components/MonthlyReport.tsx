@@ -1,18 +1,22 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {BackHandler, Pressable, StyleSheet, View} from 'react-native';
+import {ActivityIndicator, BackHandler, Pressable, StyleSheet, View} from 'react-native';
 import Text from '../../../components/AppText';
-import {CalendarDays, ChevronLeft, Lightbulb} from 'lucide-react-native';
+import {Activity, ChevronLeft, Flame, Footprints, Moon, Sparkles} from 'lucide-react-native';
 import {format, getDay, parseISO, subMonths} from 'date-fns';
 
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {getStressLevel, stressLevels} from '../constants/reportData';
 import {getMonthlyReport, type MonthlyReportData} from '../../../services/api/reports';
+import {createMockMonthlyReport} from '../constants/monthlyReportMock';
 import type {DailyStress} from '../types';
+import HealthCard from './HealthCard';
 import PeakStressDayCard from './PeakStressDayCard';
 import ReportCard from './ReportCard';
-import StressKeywordCard from './StressKeywordCard';
+import {KeywordChips} from './StressKeywordCard';
 import WeeklyReportItem from './WeeklyReportItem';
 
+// UI 확인용: true 면 서버 대신 목업 데이터로 월간 리포트를 그린다.
+const USE_MONTHLY_MOCK = true;
 const MONTH_COUNT = 3;
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -28,51 +32,55 @@ const getRecentMonths = (count: number, baseDate = new Date()): Month[] =>
     return {key: format(date, 'yyyy-MM'), label: format(date, 'yyyy년 M월')};
   });
 
-const hours = (minutes: number | null) => (minutes === null ? '-' : `${Math.round((minutes / 60) * 10) / 10}시간`);
-const count = (value: number | null) => (value === null ? '-' : `${Math.round(value).toLocaleString()}보`);
+const hours = (minutes: number | null) => (minutes === null ? '-' : String(Math.round((minutes / 60) * 10) / 10));
+const count = (value: number | null) => (value === null ? '-' : Math.round(value).toLocaleString());
 
-function SummaryCard({report}: {report: MonthlyReportData}) {
-  const {theme} = useAppTheme();
+// 일간 탭의 건강 카드와 같은 모양으로 한 달 요약을 2x2로 보여준다.
+function MonthlySummary({report}: {report: MonthlyReportData}) {
   const level = report.averageStressScore === null ? null : getStressLevel(report.averageStressScore);
   const diff = report.averageStressScore !== null && report.previousAverageStressScore !== null
     ? Math.round((report.averageStressScore - report.previousAverageStressScore) * 10) / 10
     : null;
+  const diffText = diff === null ? null
+    : diff > 0 ? `지난달보다 ${diff}점 ↑` : diff < 0 ? `지난달보다 ${-diff}점 ↓` : '지난달과 같음';
 
   return (
-    <ReportCard>
-      <Text style={[styles.cardTitle, {color: theme.text}]}>이번 달 한눈에</Text>
-      <View style={styles.statRow}>
-        <View style={[styles.stat, {backgroundColor: theme.surfaceMuted}]}>
-          <Text style={[styles.statLabel, {color: theme.textMuted}]}>평균 스트레스</Text>
-          <Text style={[styles.statValue, {color: level ? theme[level.colorKey] : theme.text}]}>
-            {report.averageStressScore ?? '-'}
-          </Text>
-          <Text style={[styles.statSub, {color: theme.textMuted}]}>
-            {diff === null ? (level?.label ?? '기록 없음')
-              : `${level?.label} · 지난달보다 ${diff > 0 ? `${diff}점 ↑` : diff < 0 ? `${-diff}점 ↓` : '같음'}`}
-          </Text>
-        </View>
-        <View style={[styles.stat, {backgroundColor: theme.surfaceMuted}]}>
-          <Text style={[styles.statLabel, {color: theme.textMuted}]}>스트레스 높은 날</Text>
-          <Text style={[styles.statValue, {color: theme.text}]}>{report.highStressDays}일</Text>
-          <Text style={[styles.statSub, {color: theme.textMuted}]}>기록한 {report.dayCount}일 중</Text>
-        </View>
+    <>
+      <View style={styles.grid}>
+        <HealthCard
+          title="평균 스트레스"
+          value={report.averageStressScore === null ? '-' : String(report.averageStressScore)}
+          unit={report.averageStressScore === null ? undefined : '점'}
+          caption={diffText ?? level?.label}
+          Icon={Activity}
+        />
+        <HealthCard
+          title="스트레스 높은 날"
+          value={String(report.highStressDays)}
+          unit="일"
+          caption={`기록한 ${report.dayCount}일 중`}
+          Icon={Flame}
+        />
       </View>
-      <View style={styles.statRow}>
-        <View style={[styles.stat, {backgroundColor: theme.surfaceMuted}]}>
-          <Text style={[styles.statLabel, {color: theme.textMuted}]}>평균 수면</Text>
-          <Text style={[styles.statValueSmall, {color: theme.text}]}>{hours(report.averageSleepMinutes)}</Text>
-        </View>
-        <View style={[styles.stat, {backgroundColor: theme.surfaceMuted}]}>
-          <Text style={[styles.statLabel, {color: theme.textMuted}]}>평균 걸음</Text>
-          <Text style={[styles.statValueSmall, {color: theme.text}]}>{count(report.averageSteps)}</Text>
-        </View>
+      <View style={styles.grid}>
+        <HealthCard
+          title="평균 수면"
+          value={hours(report.averageSleepMinutes)}
+          unit={report.averageSleepMinutes === null ? undefined : '시간'}
+          Icon={Moon}
+        />
+        <HealthCard
+          title="평균 걸음수"
+          value={count(report.averageSteps)}
+          unit={report.averageSteps === null ? undefined : '걸음'}
+          Icon={Footprints}
+        />
       </View>
-    </ReportCard>
+    </>
   );
 }
 
-// 달력: 날마다 스트레스 단계 색. 원인 키워드를 고르면 그 원인이 나온 날에 테두리를 그린다.
+// 달력: 날마다 스트레스 단계 색을 옅게 깔고, 원인 키워드를 고르면 그날을 진하게 채운다.
 function StressCalendar({report, highlighted}: {report: MonthlyReportData; highlighted: Set<string>}) {
   const {theme} = useAppTheme();
   const byDate = new Map(report.days.map(day => [day.date, day]));
@@ -86,10 +94,8 @@ function StressCalendar({report, highlighted}: {report: MonthlyReportData; highl
 
   return (
     <ReportCard>
-      <View style={styles.titleRow}>
-        <CalendarDays color={theme.accent} size={20} />
-        <Text style={[styles.cardTitle, styles.titleInline, {color: theme.text}]}>날짜별 스트레스</Text>
-      </View>
+      <Text style={[styles.title, styles.calendarTitle, {color: theme.text}]}>날짜별 스트레스</Text>
+
       {/* 한 줄에 7칸을 직접 묶는다(퍼센트 너비는 반올림 때문에 6칸에서 줄이 넘어갔다). */}
       <View style={styles.weekRow}>
         {WEEKDAYS.map(label => (
@@ -103,30 +109,38 @@ function StressCalendar({report, highlighted}: {report: MonthlyReportData; highl
             const date = `${report.month}-${String(dayNumber).padStart(2, '0')}`;
             const score = byDate.get(date)?.finalDailyStressScore ?? null;
             const level = score === null ? null : getStressLevel(score);
+            const color = level ? theme[level.colorKey] : null;
             const future = dayNumber > lastDate;
             const marked = highlighted.has(date);
+            // 평소엔 배경 없이 숫자 색으로 단계를 보이고, 키워드로 고른 날만 칸을 진하게 채운다.
+            const filled = marked && color;
             return (
               <View key={date} style={styles.cell}>
                 <View
                   accessibilityLabel={`${dayNumber}일 ${score === null ? '기록 없음' : `${score}점 ${level?.label}`}`}
-                  style={[
-                    styles.cellInner,
-                    {backgroundColor: level ? theme[level.colorKey] : theme.surfaceMuted},
-                    level?.colorKey === 'icon' && styles.calm,
-                    future && styles.future,
-                    marked && {borderColor: theme.text},
-                  ]}>
-                  <Text style={[styles.cellText, {color: level ? theme.surface : theme.textMuted}]}>{dayNumber}</Text>
+                  style={styles.cellInner}>
+                  {/* 채움은 따로 그린다: 같은 칸의 배경색만 바꾸면 안드로이드에서 모서리가 각지게 나왔다. */}
+                  {filled && <View style={[styles.cellFill, {backgroundColor: color}]} />}
+                  <Text
+                    style={[
+                      styles.cellText,
+                      {color: filled ? theme.surface : color ?? theme.textMuted},
+                      future && styles.future,
+                    ]}>
+                    {dayNumber}
+                  </Text>
                 </View>
               </View>
             );
           })}
         </View>
       ))}
+
+      <View style={[styles.divider, {backgroundColor: theme.border}]} />
       <View style={styles.legend}>
         {[...stressLevels].reverse().map(level => (
           <View key={level.label} style={styles.legendItem}>
-            <View style={[styles.legendDot, {backgroundColor: theme[level.colorKey]}, level.colorKey === 'icon' && styles.calm]} />
+            <View style={[styles.legendDot, {backgroundColor: theme[level.colorKey]}]} />
             <Text style={[styles.legendText, {color: theme.textMuted}]}>{level.label}</Text>
           </View>
         ))}
@@ -135,24 +149,46 @@ function StressCalendar({report, highlighted}: {report: MonthlyReportData; highl
   );
 }
 
+// 일간 탭의 '뿡뿡이의 스트레스 원인 분석' 카드와 같은 모양
 function MonthlyAnalysisCard({analysis}: {analysis: MonthlyReportData['analysis']}) {
   const {theme} = useAppTheme();
   const [top, ...rest] = analysis.causes;
   return (
     <ReportCard>
-      <View style={styles.titleRow}>
-        <Lightbulb color={theme.warning} size={20} />
-        <Text style={[styles.cardTitle, styles.titleInline, {color: theme.text}]}>이번 달 스트레스 원인</Text>
+      <View style={styles.iconTitleRow}>
+        <View style={[styles.iconWrap, {backgroundColor: theme.iconSurface}]}>
+          <Sparkles color={theme.icon} size={20} />
+        </View>
+        <Text style={[styles.title, {color: theme.text}]}>이번 달 스트레스 원인 분석</Text>
       </View>
-      <Text style={[styles.body, {color: theme.text}]}>{top ? top.conclusion : analysis.message}</Text>
-      {rest.filter(cause => cause.label !== top?.label).slice(0, 2).map(cause => (
-        <Text key={`${cause.kind}:${cause.label}`} style={[styles.muted, {color: theme.textMuted}]}>
-          · '{cause.label}' 날도 평소보다 {cause.diff}점 높았어요 ({cause.days}일)
-        </Text>
-      ))}
-      <Text style={[styles.note, {color: theme.textMuted}]}>
-        이번 달 하루 정리와 스트레스 점수로 본 경향이에요. 진단이 아니에요.
-      </Text>
+
+      {top ? (
+        <>
+          <View style={styles.compare}>
+            <View style={[styles.stat, {backgroundColor: theme.accentMuted}]}>
+              <Text numberOfLines={1} style={[styles.statLabel, {color: theme.textMuted}]}>'{top.label}' 날</Text>
+              <Text style={[styles.statValue, {color: theme.text}]}>{top.avgStress}점</Text>
+              <Text style={[styles.statSub, {color: theme.textMuted}]}>{top.days}일 평균</Text>
+            </View>
+            <View style={[styles.stat, {backgroundColor: theme.surfaceMuted}]}>
+              <Text style={[styles.statLabel, {color: theme.textMuted}]}>다른 날</Text>
+              <Text style={[styles.statValue, {color: theme.text}]}>{top.baselineStress}점</Text>
+              <Text style={[styles.statSub, {color: theme.textMuted}]}>평균</Text>
+            </View>
+          </View>
+          <Text style={[styles.body, {color: theme.text}]}>{top.conclusion}</Text>
+          {rest.filter(cause => cause.label !== top.label).slice(0, 2).map(cause => (
+            <Text key={`${cause.kind}:${cause.label}`} style={[styles.muted, {color: theme.textMuted}]}>
+              · '{cause.label}' 날도 평소보다 {cause.diff}점 높았어요 ({cause.days}일)
+            </Text>
+          ))}
+          <Text style={[styles.note, {color: theme.textMuted}]}>
+            이번 달 하루 정리와 스트레스 점수로 본 경향이에요. 진단이 아니에요.
+          </Text>
+        </>
+      ) : (
+        <Text style={[styles.body, {color: theme.text}]}>{analysis.message}</Text>
+      )}
     </ReportCard>
   );
 }
@@ -165,6 +201,10 @@ function MonthlyReportDetail({month, onBack}: {month: Month; onBack: () => void}
 
   useEffect(() => {
     let active = true;
+    if (USE_MONTHLY_MOCK) {
+      setReport(createMockMonthlyReport(month.key));
+      return;
+    }
     getMonthlyReport(month.key)
       .then(data => {if (active) setReport(data);})
       .catch(() => {if (active) setUnavailable(true);});
@@ -205,25 +245,36 @@ function MonthlyReportDetail({month, onBack}: {month: Month; onBack: () => void}
         <View style={styles.backButton} />
       </View>
 
-      {!report ? (
-        <Text style={{color: theme.textMuted}}>
-          {unavailable ? '월간 기록을 불러오지 못했어요. 서버 연결을 확인해 주세요.' : '월간 기록을 불러오고 있어요…'}
-        </Text>
-      ) : report.dayCount === 0 ? (
-        <Text style={{color: theme.textMuted}}>이 달에 표시할 스트레스 기록이 없어요.</Text>
+      {!report || report.dayCount === 0 ? (
+        <ReportCard>
+          {!report && !unavailable ? (
+            <ActivityIndicator style={styles.loading} color={theme.accent} />
+          ) : (
+            <Text style={[styles.muted, {color: theme.textMuted}]}>
+              {unavailable ? '월간 기록을 불러오지 못했어요. 서버 연결을 확인해 주세요.' : '이 달에 표시할 스트레스 기록이 없어요.'}
+            </Text>
+          )}
+        </ReportCard>
       ) : (
         <>
-          <SummaryCard report={report} />
+          {peakDay && (
+            <PeakStressDayCard
+              day={peakDay}
+              compact
+              // 원인 키워드 버튼: 누르면 아래 달력에 그 원인이 나온 날이 칠해진다.
+              footer={report.causes.length > 0 && (
+                <KeywordChips
+                  causes={report.causes}
+                  selectedCause={selectedCause}
+                  onSelectCause={setSelectedCause}
+                  style={styles.chipsInCard}
+                />
+              )}
+            />
+          )}
           <StressCalendar report={report} highlighted={highlighted} />
-          <StressKeywordCard
-            causes={report.causes}
-            selectedCause={selectedCause}
-            onSelectCause={setSelectedCause}
-            hint="키워드를 누르면 해당 날짜가 달력에 표시돼요."
-            emptyText="이번 달에는 기록된 원인이 없어요."
-          />
           <MonthlyAnalysisCard analysis={report.analysis} />
-          {peakDay && <PeakStressDayCard day={peakDay} />}
+          <MonthlySummary report={report} />
         </>
       )}
     </>
@@ -252,27 +303,30 @@ const styles = StyleSheet.create({
   monthInfo: {alignItems: 'center', flex: 1},
   monthLabel: {fontSize: 15, fontWeight: '800'},
   monthRange: {fontSize: 12, marginTop: 2},
-  cardTitle: {fontSize: 16, fontWeight: '700', marginBottom: 12},
-  titleRow: {alignItems: 'center', columnGap: 8, flexDirection: 'row', marginBottom: 12},
-  titleInline: {marginBottom: 0},
-  statRow: {columnGap: 10, flexDirection: 'row', marginBottom: 10},
+  grid: {flexDirection: 'row', gap: 10},
+  chipsInCard: {marginTop: 12},
+  title: {fontSize: 17, fontWeight: '800'},
+  calendarTitle: {marginBottom: 14},
+  weekRow: {flexDirection: 'row'},
+  weekday: {flex: 1, fontSize: 12, fontWeight: '700', marginBottom: 6, textAlign: 'center'},
+  cell: {aspectRatio: 1, flex: 1, padding: 3},
+  cellInner: {alignItems: 'center', flex: 1, justifyContent: 'center'},
+  cellFill: {borderRadius: 12, bottom: 0, left: 0, position: 'absolute', right: 0, top: 0},
+  cellText: {fontSize: 18, fontWeight: '800'},
+  future: {opacity: 0.4},
+  divider: {height: StyleSheet.hairlineWidth, marginBottom: 12, marginTop: 10},
+  legend: {columnGap: 14, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center'},
+  legendItem: {alignItems: 'center', columnGap: 5, flexDirection: 'row'},
+  legendDot: {borderRadius: 5, height: 10, width: 10},
+  legendText: {fontSize: 12, fontWeight: '600'},
+  iconTitleRow: {alignItems: 'center', columnGap: 10, flexDirection: 'row', marginBottom: 12},
+  iconWrap: {alignItems: 'center', borderRadius: 12, height: 36, justifyContent: 'center', width: 36},
+  compare: {columnGap: 10, flexDirection: 'row', marginBottom: 12},
   stat: {borderRadius: 14, flex: 1, paddingHorizontal: 12, paddingVertical: 10},
   statLabel: {fontSize: 12, fontWeight: '600'},
-  statValue: {fontSize: 24, fontWeight: '800', marginTop: 2},
-  statValueSmall: {fontSize: 18, fontWeight: '800', marginTop: 2},
+  statValue: {fontSize: 22, fontWeight: '800', marginTop: 2},
   statSub: {fontSize: 11, marginTop: 1},
-  weekRow: {flexDirection: 'row'},
-  weekday: {flex: 1, fontSize: 11, fontWeight: '700', marginBottom: 6, textAlign: 'center'},
-  cell: {aspectRatio: 1, flex: 1, padding: 3},
-  // 편안함(가장 낮은 단계)은 진한 색이 무거워 보여 옅게
-  calm: {opacity: 0.45},
-  cellInner: {alignItems: 'center', borderColor: 'transparent', borderRadius: 10, borderWidth: 2.5, flex: 1, justifyContent: 'center'},
-  future: {opacity: 0.35},
-  cellText: {fontSize: 12, fontWeight: '700'},
-  legend: {columnGap: 12, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 10},
-  legendItem: {alignItems: 'center', columnGap: 4, flexDirection: 'row'},
-  legendDot: {borderRadius: 4, height: 8, width: 8},
-  legendText: {fontSize: 11},
+  loading: {marginVertical: 12},
   body: {fontSize: 14, lineHeight: 21, marginBottom: 8},
   muted: {fontSize: 12, lineHeight: 18},
   note: {fontSize: 11, marginTop: 8},

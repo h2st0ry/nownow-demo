@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, StyleSheet, View} from 'react-native';
+import {Pressable, StyleSheet, View, type ViewStyle} from 'react-native';
 import Text from '../../../components/AppText';
 
 import {useAppTheme} from '../../../theme/ThemeProvider';
@@ -38,45 +38,63 @@ export default function StressKeywordCard({
           <Text style={[styles.hint, {color: theme.textMuted}]}>
             {hint}
           </Text>
-          <View style={styles.chips}>
-            {causes.map(({cause, count}) => {
-              const selected = selectedCause === cause;
-
-              return (
-                <Pressable
-                  key={cause}
-                  onPress={() => onSelectCause(selected ? null : cause)}
-                  style={({pressed}) => [
-                    styles.chip,
-                    {
-                      backgroundColor: selected
-                        ? theme.accent
-                        : theme.surfaceMuted,
-                      borderColor: selected ? theme.accent : theme.border,
-                    },
-                    pressed && styles.pressed,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {color: selected ? theme.accentText : theme.text},
-                    ]}>
-                    #{cause}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.chipCount,
-                      {color: selected ? theme.accentText : theme.textMuted},
-                    ]}>
-                    {count}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <KeywordChips
+            causes={causes}
+            selectedCause={selectedCause}
+            onSelectCause={onSelectCause}
+          />
         </>
       )}
     </ReportCard>
+  );
+}
+
+// 원인 키워드 버튼 줄만 (다른 카드 안에 넣을 때)
+export function KeywordChips({
+  causes,
+  selectedCause,
+  onSelectCause,
+  style,
+}: Pick<StressKeywordCardProps, 'causes' | 'selectedCause' | 'onSelectCause'> & {
+  style?: ViewStyle;
+}) {
+  const {theme} = useAppTheme();
+
+  return (
+    <View style={[styles.chips, style]}>
+      {causes.map(({cause, count}) => {
+        const selected = selectedCause === cause;
+
+        return (
+          <Pressable
+            key={cause}
+            onPress={() => onSelectCause(selected ? null : cause)}
+            style={({pressed}) => [
+              styles.chip,
+              {
+                backgroundColor: selected ? theme.accent : theme.surfaceMuted,
+                borderColor: selected ? theme.accent : theme.border,
+              },
+              pressed && styles.pressed,
+            ]}>
+            <Text
+              style={[
+                styles.chipText,
+                {color: selected ? theme.accentText : theme.text},
+              ]}>
+              #{cause}
+            </Text>
+            <Text
+              style={[
+                styles.chipCount,
+                {color: selected ? theme.accentText : theme.textMuted},
+              ]}>
+              {count}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 

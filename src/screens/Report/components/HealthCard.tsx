@@ -9,6 +9,7 @@ interface HealthCardProps {
   title: string;
   value: string;
   unit?: string;
+  caption?: string;
   Icon: LucideIcon;
   selected?: boolean;
   onPress?: () => void;
@@ -18,6 +19,7 @@ export default function HealthCard({
   title,
   value,
   unit,
+  caption,
   Icon,
   selected = false,
   onPress,
@@ -36,15 +38,18 @@ export default function HealthCard({
         },
         pressed && styles.pressed,
       ]}>
-      <Icon color={selected ? theme.accentText : theme.accent} size={23} />
-
-      <Text
-        style={[
-          styles.title,
-          {color: selected ? theme.accentText : theme.textMuted},
-        ]}>
-        {title}
-      </Text>
+      {/* 아이콘 옆에 이름을 같은 크기로 */}
+      <View style={styles.titleRow}>
+        <Icon color={selected ? theme.accentText : theme.accent} size={TITLE_SIZE} />
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.title,
+            {color: selected ? theme.accentText : theme.textMuted},
+          ]}>
+          {title}
+        </Text>
+      </View>
 
       <View style={styles.valueRow}>
         <Text
@@ -65,11 +70,35 @@ export default function HealthCard({
           </Text>
         )}
       </View>
+
+      {caption && (
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.caption,
+            {color: selected ? theme.accentText : theme.textMuted},
+          ]}>
+          {caption}
+        </Text>
+      )}
     </Pressable>
   );
 }
 
+// 아이콘과 이름 글씨 크기 (같이 바뀐다)
+const TITLE_SIZE = 18;
+
 const styles = StyleSheet.create({
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  title: {
+    flexShrink: 1,
+    fontSize: TITLE_SIZE,
+    fontWeight: '700',
+  },
   card: {
     borderRadius: 16,
     borderWidth: 1,
@@ -78,11 +107,6 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.8,
-  },
-  title: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 9,
   },
   valueRow: {
     alignItems: 'flex-end',
@@ -98,5 +122,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginBottom: 3,
+  },
+  caption: {
+    fontSize: 11,
+    marginTop: 3,
   },
 });
