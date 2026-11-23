@@ -19,6 +19,13 @@ class DailyReminderModule(
         promise.resolve(null)
     }
 
+    /** 알림 속 '뿡뿡이'를 바꿀 캐릭터 이름. 빈 값이면 뿡뿡이 그대로. */
+    @ReactMethod
+    fun setCharacterName(name: String, promise: Promise) {
+        DailyReminder.setCharacterName(reactContext, name)
+        promise.resolve(null)
+    }
+
     /** 매일 hour:minute(폰 시간)에 messages 중 하나로 알림. 반환: 다음 알림 시각(ms) */
     @ReactMethod
     fun schedule(hour: Int, minute: Int, messages: ReadableArray, promise: Promise) {

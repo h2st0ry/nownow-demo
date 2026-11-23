@@ -1,4 +1,4 @@
-type JosaPair = '이/가' | '을/를' | '은/는' | '과/와' | '으로/로';
+type JosaPair = '이/가' | '을/를' | '은/는' | '과/와' | '으로/로' | '이랑/랑' | '이야/야';
 
 const HANGUL_START = 0xac00;
 const HANGUL_END = 0xd7a3;

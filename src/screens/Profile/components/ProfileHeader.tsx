@@ -6,9 +6,11 @@ import {User} from 'lucide-react-native';
 import {shadows} from '../../../theme/shadows';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {useProfile} from '../hooks/useProfile';
+import {usePersonalize} from '../../../context/CharacterNameProvider';
 
 export default function ProfileHeader() {
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const profile = useProfile();
 
   return (
@@ -19,7 +21,7 @@ export default function ProfileHeader() {
       <View>
         <Text style={[styles.name, {color: theme.text}]}>{profile.name}</Text>
         <Text style={[styles.message, {color: theme.textMuted}]}>
-          {profile.message}
+          {p(profile.message)}
         </Text>
       </View>
     </View>

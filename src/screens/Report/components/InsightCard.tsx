@@ -1,12 +1,14 @@
 import React, {useRef, useState} from 'react';
 import {Linking, Pressable, StyleSheet, View} from 'react-native';
 import Text from '../../../components/AppText';
-import {AlertCircle, ChevronRight, MapPin, Sparkles} from 'lucide-react-native';
+import {MapPin} from 'lucide-react-native';
 
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {createAiRecommendation, type AiRecommendation} from '../../../services/api/reports';
 import {ApiError} from '../../../services/api/client';
+import CardHeader from './CardHeader';
 import ReportCard from './ReportCard';
+import StatPair from './StatPair';
 import {openDeliveryApp} from '../../../services/delivery/deliveryApps';
 import {cinemaLinks} from '../../../constants/cinemaLinks';
 
@@ -68,46 +70,22 @@ export default function InsightCard({
 
   return (
     <>
-      <ReportCard style={styles.analysisCard}>
-        <View style={styles.titleRow}>
-          <AlertCircle color={theme.warning} size={21} />
-          <Text style={[styles.title, {color: theme.text}]}>스트레스 분석</Text>
-        </View>
-        <Text style={{color: theme.textMuted}}>오늘 헬스 커넥트 심박수 · 1시간 단위</Text>
-        {peakStress && lowestStress ? <><View style={[styles.analysisBox, {backgroundColor: theme.accentMuted}]}>
-          <Text style={[styles.caption, {color: theme.textMuted}]}>
-            가장 스트레스가 높은 시간
-          </Text>
-          <Text style={[styles.pointText, {color: theme.accent}]}>
-            {peakStress.time.slice(11, 16)}
-          </Text>
-          <Text style={[styles.description, {color: theme.text}]}>
-            스트레스 지표 {peakStress.stress}점 · 심박 기록 {peakStress.sampleCount}회
-          </Text>
-        </View>
-        <View style={[styles.analysisBox, {backgroundColor: theme.accentMuted}]}>
-          <Text style={[styles.caption, {color: theme.textMuted}]}>
-            가장 안정적인 시간
-          </Text>
-          <Text style={[styles.pointText, {color: theme.accent}]}>
-            {lowestStress.time.slice(11, 16)}
-          </Text>
-          <Text style={[styles.description, {color: theme.text}]}>
-            스트레스 지표 {lowestStress.stress}점 · 심박 기록 {lowestStress.sampleCount}회
-          </Text>
-        </View>
-        {peakStress.time === lowestStress.time && <Text style={{color: theme.textMuted}}>같은 시간대가 표시될 수 있어요. 심박 기록이 더 쌓이면 비교하기 쉬워져요.</Text>}
-        </> : <Text style={{color: theme.textMuted}}>{analysisUnavailable
+      <ReportCard>
+        <CardHeader title="시간대별 스트레스" right="오늘 · 1시간 단위" />
+        {peakStress && lowestStress ? <>
+        <StatPair stats={[
+          {label: '가장 높은 시간', value: peakStress.time.slice(11, 16), sub: `지표 ${peakStress.stress}점 · 기록 ${peakStress.sampleCount}회`, color: theme.accentStrong},
+          {label: '가장 안정적인 시간', value: lowestStress.time.slice(11, 16), sub: `지표 ${lowestStress.stress}점 · 기록 ${lowestStress.sampleCount}회`},
+        ]} />
+        {peakStress.time === lowestStress.time && <Text style={[styles.muted, {color: theme.textMuted}]}>같은 시간대가 표시될 수 있어요. 심박 기록이 더 쌓이면 비교하기 쉬워져요.</Text>}
+        </> : <Text style={[styles.muted, {color: theme.textMuted}]}>{analysisUnavailable
           ? '헬스 커넥트에서 심박수를 읽지 못했어요. 읽기 권한을 확인해 주세요.'
           : analysisLoading ? '오늘 심박 기록을 불러오고 있어요…'
             : '한 시간에 심박 기록이 3회 이상 있어야 지표를 계산할 수 있어요.'}</Text>}
       </ReportCard>
 
       <ReportCard style={styles.recommendCard}>
-        <View style={styles.titleRow}>
-          <Sparkles color={theme.accent} size={21} />
-          <Text style={[styles.title, {color: theme.text}]}>AI 추천</Text>
-        </View>
+        <CardHeader title="오늘의 추천" />
         <Text numberOfLines={6} style={[styles.recommendText, {color: theme.text}]}>
           {showOfflineTip ? '지금은 연결이 잠깐 쉬는 중이야. 우리도 좋아하는 노래 한 곡 들으면서 잠깐 쉬어갈까? ♡'
             : recommendation?.status === 'ready' ? recommendation.message : recommendation?.status === 'no_records'
@@ -126,9 +104,8 @@ export default function InsightCard({
             pressed && styles.pressed,
           ]}>
           <Text style={[styles.buttonText, {color: theme.accentText}]}>
-            {loading ? '추천을 준비하고 있어요…' : recommendation || showOfflineTip ? 'AI 추천 다시 받기' : 'AI 추천 받기'}
+            {loading ? '추천을 준비하고 있어요…' : recommendation || showOfflineTip ? '다시 추천받기' : '추천받기'}
           </Text>
-          <ChevronRight color={theme.accentText} size={18} />
         </Pressable>
         {recommendation?.status === 'ready' && recommendation.action === 'walk_map' && <Pressable
           accessibilityRole="button"
@@ -143,7 +120,7 @@ export default function InsightCard({
           <Text style={[styles.buttonText, {color: theme.text}]}>{item.label}</Text>
         </Pressable>)}
         {routine && <Pressable accessibilityRole="button" accessibilityState={{expanded: showRoutine}} onPress={() => setShowRoutine(value => !value)}>
-          <Text style={{color: theme.accent}}>{showRoutine ? '루틴 접기' : `${routine.title} 루틴 보기`}</Text>
+          <Text style={[styles.link, {color: theme.accentStrong}]}>{showRoutine ? '루틴 접기' : `${routine.title} 루틴 보기`}</Text>
         </Pressable>}
         {routine && showRoutine && routine.steps.map((step, index) => <Text key={index} style={{color: theme.text}}>{index + 1}. {step}</Text>)}
       </ReportCard>
@@ -152,55 +129,34 @@ export default function InsightCard({
 }
 
 const styles = StyleSheet.create({
-  mapButton: {alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 16, minHeight: 44, paddingHorizontal: 12},
-  analysisCard: {
-    rowGap: 12,
+  mapButton: {alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 12, minHeight: 40, paddingHorizontal: 12},
+  muted: {
+    fontSize: 14,
+    lineHeight: 20,
   },
-  titleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 9,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  analysisBox: {
-    borderRadius: 14,
-    padding: 14,
-  },
-  caption: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  pointText: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: 5,
-  },
-  description: {
-    fontSize: 13,
-    marginTop: 3,
+  link: {
+    fontSize: 15,
+    fontWeight: '600',
   },
   recommendCard: {
-    rowGap: 13,
+    rowGap: 12,
   },
   recommendText: {
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 15,
+    lineHeight: 22,
   },
   button: {
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 46,
   },
   pressed: {
-    opacity: 0.82,
+    opacity: 0.7,
   },
   buttonText: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

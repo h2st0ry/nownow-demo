@@ -1,12 +1,14 @@
 import React from 'react';
-import {Pressable, StyleSheet, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import Text from '../../../components/AppText';
-import {TrendingUp} from 'lucide-react-native';
 
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {stressPeriodOptions} from '../constants/reportData';
 import type {StressCause, StressPeriod} from '../types';
+import CardHeader from './CardHeader';
 import ReportCard from './ReportCard';
+import Segmented from './Segmented';
+import {usePersonalize} from '../../../context/CharacterNameProvider';
 
 interface StressCauseCardProps {
   causes: StressCause[];
@@ -22,48 +24,22 @@ export default function StressCauseCard({
   onPeriodChange,
 }: StressCauseCardProps) {
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const totalCount = causes.reduce((sum, item) => sum + item.count, 0);
   const getCauseColor = (index: number) =>
     theme.chart[index % theme.chart.length];
 
   return (
     <ReportCard>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <View style={[styles.iconWrap, {backgroundColor: theme.iconSurface}]}>
-            <TrendingUp color={theme.icon} size={20} />
-          </View>
-          <Text style={[styles.title, {color: theme.text}]}>
-            {period === 'day' ? '오늘의 스트레스 원인 키워드' : '어제의 스트레스 원인 키워드'}
-          </Text>
-        </View>
-        <View style={[styles.toggle, {backgroundColor: theme.surfaceMuted}]}>
-          {stressPeriodOptions.map(item => (
-            <Pressable
-              key={item.key}
-              onPress={() => onPeriodChange(item.key)}
-              style={[
-                styles.toggleButton,
-                period === item.key && {backgroundColor: theme.nav},
-              ]}>
-              <Text
-                style={[
-                  styles.toggleText,
-                  {color: period === item.key ? theme.text : theme.textMuted},
-                ]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+      <CardHeader title="스트레스 원인" />
+      <Segmented options={stressPeriodOptions} value={period} onChange={onPeriodChange} />
 
       {causes.length ? <Text style={[styles.count, {color: theme.text}]}>
         {totalCount}
         <Text style={[styles.countUnit, {color: theme.textMuted}]}>
-          회의 키워드 언급
+          {' '}번 언급
         </Text>
-      </Text> : <Text style={{color: theme.textMuted}}>{unavailable ? '키워드 기록을 불러오지 못했어요.' : '뿡뿡이와 하루를 정리하고 키워드를 저장하면 여기에 보여요.'}</Text>}
+      </Text> : <Text style={[styles.empty, {color: theme.textMuted}]}>{unavailable ? '키워드 기록을 불러오지 못했어요.' : p('뿡뿡이와 하루를 정리하고 키워드를 저장하면 여기에 보여요.')}</Text>}
 
       <View style={styles.causes}>
         {causes.map((item, index) => (
@@ -103,52 +79,23 @@ export default function StressCauseCard({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    gap: 14,
-  },
-  titleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    borderRadius: 11,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  toggle: {
-    borderRadius: 13,
-    flexDirection: 'row',
-    padding: 4,
-  },
-  toggleButton: {
-    alignItems: 'center',
-    borderRadius: 10,
-    flex: 1,
-    paddingVertical: 9,
-  },
-  toggleText: {
-    fontSize: 13,
-    fontWeight: '700',
+  empty: {
+    fontSize: 14,
+    marginTop: 14,
   },
   count: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '800',
-    marginTop: 18,
+    letterSpacing: -0.5,
+    marginTop: 14,
   },
   countUnit: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   causes: {
-    marginTop: 18,
-    rowGap: 14,
+    marginTop: 14,
+    rowGap: 12,
   },
   causeRow: {
     alignItems: 'center',
@@ -167,20 +114,19 @@ const styles = StyleSheet.create({
     width: 10,
   },
   causeLabel: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
   causeValue: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 13,
   },
   track: {
-    borderRadius: 5,
-    height: 9,
+    borderRadius: 3,
+    height: 6,
     overflow: 'hidden',
   },
   progress: {
-    borderRadius: 5,
+    borderRadius: 3,
     height: '100%',
   },
 });

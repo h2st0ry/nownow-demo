@@ -4,9 +4,11 @@ import TextInput from '../../../components/AppTextInput';
 import Text from '../../../components/AppText';
 import {loadPreferences, mbtiPattern, preferenceFields, savePreferences, type Preferences} from '../../../services/personalization';
 import {useAppTheme} from '../../../theme/ThemeProvider';
+import {usePersonalize} from '../../../context/CharacterNameProvider';
 
 export default function PersonalizationModal({onClose}: {onClose: () => void}) {
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const [initial, setInitial] = useState<Preferences>();
   const [draft, setDraft] = useState<Preferences>();
   const [saving, setSaving] = useState(false);
@@ -58,7 +60,7 @@ export default function PersonalizationModal({onClose}: {onClose: () => void}) {
       <View style={styles.overlay}>
         <View style={[styles.card, {backgroundColor: theme.surface}]}>
           <ScrollView keyboardShouldPersistTaps="handled">
-            <Text style={[styles.title, {color: theme.text}]}>뿡뿡이가 기억하는 것</Text>
+            <Text style={[styles.title, {color: theme.text}]}>{p('뿡뿡이가 기억하는 것')}</Text>
             <Text style={{color: theme.textMuted}}>답변과 추천에 참고해요. 지우고 저장하면 기억에서 삭제돼요.</Text>
             {draft ? preferenceFields.map(({key, label, placeholder, maxLength}) => (
               <View key={key} style={styles.field}>
