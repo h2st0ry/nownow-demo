@@ -1,6 +1,7 @@
 import React, {useEffect, useRef} from 'react';
 import {Animated, StyleSheet, View} from 'react-native';
 
+import {SCREEN_HORIZONTAL_PADDING} from '../../../theme/layout';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import type {MoodType} from '../types';
 import CharacterMessage from './CharacterMessage';
@@ -108,8 +109,9 @@ export default function CharacterStage({
 }
 
 const styles = StyleSheet.create({
+  // 둥근 카드 테두리 없이 화면 가로 끝까지 채운다(홈 화면 좌우 여백만큼 바깥으로).
   room: {
-    borderRadius: 26,
+    marginHorizontal: -SCREEN_HORIZONTAL_PADDING,
     overflow: 'hidden',
     paddingTop: 16,
   },
