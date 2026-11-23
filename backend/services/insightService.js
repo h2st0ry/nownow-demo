@@ -9,6 +9,7 @@ const {
   datesBetween
 } = require("../utils/kstDate");
 const stressService = require("./stressService");
+const { analyzeStressCauses, healthSnapshot } = require("./stressCauseAnalysis");
 const {
   buildRecommendation,
   countCauses,
@@ -128,7 +129,61 @@ async function getWeeklyReport(user_id, weekStart) {
   };
 }
 
+// 스트레스 원인 분석: 최근 60일 하루 요약(상황·임베딩)과 날짜별 건강 수치를 비교한다.
+const ANALYSIS_DAYS = 60;
+const parseVector = value => (typeof value === "string" ? JSON.parse(value) : value);
+
+async function getStressAnalysis(user_id) {
+  const to = kstToday();
+  const from = addDays(to, -(ANALYSIS_DAYS - 1));
+
+  const [summaries, embeddings, daily] = await Promise.all([
+    fetchAll(() =>
+      supabase
+        .from("chat_summaries")
+        .select("summary_id, keywords, created_at")
+        .eq("user_id", user_id)
+        .order("summary_id")
+    ),
+    fetchAll(() =>
+      supabase
+        .from("memory_embeddings")
+        .select("nownow_summary_id, embedding, metadata")
+        .eq("user_id", user_id)
+        .eq("source_type", "CHAT_SUMMARY")
+        .order("nownow_summary_id")
+    ),
+    stressService.getDailyStressRange(user_id, from, to)
+  ]);
+
+  const vectors = new Map(embeddings.map(row => [row.nownow_summary_id, row]));
+  const health = new Map(daily.map(day => [day.date, healthSnapshot(day)]));
+
+  const entries = [];
+  for (const row of summaries) {
+    const vector = vectors.get(row.summary_id);
+    const metadata = vector?.metadata ?? {};
+    // 대화한 날짜: 임베딩에 붙여 둔 날짜, 없으면 요약 저장 시각. 둘 다 없으면 쓸 수 없다.
+    const date = metadata.date ?? (row.created_at ? kstDateOf(row.created_at) : null);
+    if (!date || date < from || date > to) continue;
+    // 그날 점수를 새로 계산하지 못하면 요약 저장 때 붙여 둔 건강 수치를 쓴다.
+    if (!Number.isFinite(health.get(date)?.stress_score) && metadata.health) {
+      health.set(date, metadata.health);
+    }
+    entries.push({
+      summaryId: row.summary_id,
+      date,
+      situation: metadata.situation ?? null,
+      keywords: row.keywords ?? [],
+      embedding: vector ? parseVector(vector.embedding) : undefined
+    });
+  }
+
+  return { from, to, ...analyzeStressCauses(entries, health) };
+}
+
 module.exports = {
+  getStressAnalysis,
   getStressCauses,
   getRecommendation,
   getWeeklyReports,

@@ -10,6 +10,7 @@ import ActivityTrendCard from './components/ActivityTrendCard';
 import InsightCard from './components/InsightCard';
 import ReportHeader from './components/ReportHeader';
 import StressCauseCard from './components/StressCauseCard';
+import StressAnalysisCard from './components/StressAnalysisCard';
 import TrendChart from './components/TrendChart';
 import WeeklyReport from './components/WeeklyReport';
 import {metricConfig} from './constants/reportData';
@@ -242,6 +243,8 @@ export default function ReportPage() {
         period={stressPeriod}
         onPeriodChange={setStressPeriod}
       />
+
+      <StressAnalysisCard />
 
       <InsightCard
         key={healthRevision}

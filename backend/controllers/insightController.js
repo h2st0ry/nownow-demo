@@ -118,8 +118,19 @@ async function getWeeklyReport(req, res) {
   }
 }
 
+// 대화 요약 + 건강 수치로 낸 스트레스 원인 결론
+async function getStressAnalysis(req, res) {
+  try {
+    const data = await insightService.getStressAnalysis(req.user.id);
+    res.json({ message: "스트레스 원인 분석 성공", data });
+  } catch (error) {
+    res.status(500).json({ message: "스트레스 원인 분석 실패", error: error.message });
+  }
+}
+
 module.exports = {
   createAiRecommendation,
+  getStressAnalysis,
   getStressCauses,
   getRecommendation,
   getWeeklyReports,
