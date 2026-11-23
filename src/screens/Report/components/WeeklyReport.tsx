@@ -33,13 +33,13 @@ function WeeklyReportDetail({week, onBack}: WeeklyReportDetailProps) {
   useEffect(() => {
     let active = true;
     request<{data: Omit<WeeklyReportData, 'days'> & {
-      days: {date: string; finalDailyStressScore: number | null; missing?: string[]}[];
+      days: {date: string; finalDailyStressScore: number | null; missing?: string[]; causes?: string[]}[];
     }}>('GET', `/api/reports/weekly/${week.key}`)
       .then(({data}) => {
         if (!active) return;
         setReport({...data, days: data.days.flatMap(day =>
           day.finalDailyStressScore !== null && Number.isFinite(day.finalDailyStressScore) && !day.missing?.includes('demo_fixture')
-            ? [{date: day.date, score: day.finalDailyStressScore, causes: []}] : [])});
+            ? [{date: day.date, score: day.finalDailyStressScore, causes: day.causes ?? []}] : [])});
       })
       .catch(() => {if (active) setUnavailable(true);});
     return () => {active = false;};
@@ -52,7 +52,13 @@ function WeeklyReportDetail({week, onBack}: WeeklyReportDetailProps) {
     [report],
   );
 
-  const highlightedDates = useMemo(() => new Set(peakDay ? [peakDay.date] : []), [peakDay]);
+  // 원인 키워드를 고르면 그 원인이 나온 날들을, 아니면 가장 높았던 날을 그래프에 표시한다.
+  const highlightedDates = useMemo(() => {
+    if (selectedCause && report) {
+      return new Set(report.days.filter(day => day.causes.includes(selectedCause)).map(day => day.date));
+    }
+    return new Set(peakDay ? [peakDay.date] : []);
+  }, [selectedCause, report, peakDay]);
 
   // 안드로이드 뒤로가기 버튼으로도 목록으로 돌아간다.
   useEffect(() => {
