@@ -7,6 +7,7 @@ test('indexes all of the signed-in user’s summaries and searches their whole h
   const filters = [];
   const indexed = [];
   const calls = [];
+  const rpcDistances = [];
   const dbPath = require.resolve('../config/supabase');
   require.cache[dbPath] = {exports: {
     from(table) {
@@ -24,7 +25,8 @@ test('indexes all of the signed-in user’s summaries and searches their whole h
       assert.equal(args.owner_id, userId);
       assert.equal(args.candidate_ids, undefined);
       assert.equal(args.query_vector.length, 1536);
-      return {data: [{summary_id: 42, content: summary.summary, created_at: null}]};
+      rpcDistances.push(args.max_distance);
+      return {data: args.max_distance === 0.5 ? [{summary_id: 42, content: summary.summary, created_at: null}] : []};
     },
   }};
   const previousKey = process.env.OPENAI_API_KEY;
@@ -51,8 +53,20 @@ test('indexes all of the signed-in user’s summaries and searches their whole h
   assert.equal('date' in first, false);
   await findChatMemories(userId, question);
   assert.equal(indexed.length, 1);
+  assert.deepEqual(rpcDistances.sort(), [0.5, 0.5, 0.65, 0.65]);
   assert.equal(indexed[0].user_id, userId);
   assert.deepEqual(calls, [[question, summary.summary], [question]]);
   assert.ok(filters.filter(([, key]) => key === 'user_id').every(([, , value]) => value === userId));
   assert.equal(filters.filter(([, key]) => key === 'user_id').length, 4);
+});
+
+test('조금 먼 기억은 질문 낱말이 그날 상황·감정·분류 라벨에 있을 때만 쓴다', () => {
+  const {questionWords, sharesWord} = require('../services/chatMemorySearch');
+  const words = questionWords('예전에 팀장한테 혼났던 적 있었지?');
+  assert.equal(sharesWord(words, {situation: '팀장 지적', emotion: '위축', category: '부장/팀장'}), true);
+  assert.equal(sharesWord(words, {situation: '주말 한강 산책', emotion: '평온', category: '일상'}), false);
+  // 어느 질문에나 나오는 말("예전", "기억")만 겹치면 쓰지 않는다
+  assert.equal(sharesWord(questionWords('예전 기억나?'), {situation: '예전 기억', category: '일상'}), false);
+  assert.equal(sharesWord(questionWords('속상해'), {situation: '팀장 지적', emotion: '속상함'}), true);
+  assert.equal(sharesWord(words, undefined), false);
 });
