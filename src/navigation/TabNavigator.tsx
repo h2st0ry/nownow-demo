@@ -57,7 +57,7 @@ const renderScreen = (activeTab: TabKey, setActiveTab: (tab: TabKey) => void, in
     return <MyPage />;
   }
 
-  return <HomePage />;
+  return <HomePage onOpenChat={() => setActiveTab('Chat')} />;
 };
 
 export default function TabNavigator() {

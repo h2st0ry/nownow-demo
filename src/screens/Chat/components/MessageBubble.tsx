@@ -4,6 +4,7 @@ import Text from '../../../components/AppText';
 
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import type {ChatAction, Message} from '../types';
+import {usePersonalize} from '../../../context/CharacterNameProvider';
 
 interface MessageBubbleProps {
   message: Message;
@@ -16,6 +17,9 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   const {theme} = useAppTheme();
   const isUser = message.role === 'user';
+  // 캐릭터가 한 말(미리 정한 문구·AI 답변) 속 '뿡뿡이'를 정한 이름으로 바꿔 보여준다.
+  const p = usePersonalize();
+  const show = (text: string) => (isUser ? text : p(text));
   const appearAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -68,7 +72,7 @@ export default function MessageBubble({
             styles.messageText,
             {color: theme.text},
           ]}>
-          {message.content}
+          {show(message.content)}
         </Text>
 
         {message.buttons && (
@@ -84,7 +88,7 @@ export default function MessageBubble({
                 ]}>
                 <Text
                   style={[styles.choiceButtonText, {color: theme.accentText}]}>
-                  {button.label}
+                  {show(button.label)}
                 </Text>
               </Pressable>
             ))}

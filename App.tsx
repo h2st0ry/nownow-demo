@@ -6,15 +6,18 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import RootNavigator from './src/navigation/RootNavigator';
 import { ThemeProvider } from './src/theme/ThemeProvider';
+import { CharacterNameProvider } from './src/context/CharacterNameProvider';
 
 function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
+          <CharacterNameProvider>
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+          </CharacterNameProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

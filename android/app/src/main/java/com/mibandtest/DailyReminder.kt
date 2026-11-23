@@ -133,6 +133,34 @@ object DailyReminder {
             .putString("nickname", nickname.trim().take(20)).apply()
     }
 
+    fun setCharacterName(context: Context, name: String) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putString("character_name", name.trim().take(10)).apply()
+    }
+
+    // 조사 짝: 받침 있을 때 / 없을 때 (src/utils/characterName.ts 와 같은 규칙)
+    private val josaPairs = mapOf(
+        "가" to ("이" to "가"), "랑" to ("이랑" to "랑"), "는" to ("은" to "는"),
+        "를" to ("을" to "를"), "와" to ("과" to "와"), "야" to ("이야" to "야"),
+    )
+    private val characterPattern = Regex("뿡뿡이(가|랑|는|를|와|야)?")
+
+    private fun hasFinalConsonant(word: String): Boolean {
+        val last = word.lastOrNull() ?: return false
+        return last in '가'..'힣' && (last - '가') % 28 != 0
+    }
+
+    /** 글 속 '뿡뿡이(+조사)'를 사용자가 정한 캐릭터 이름으로 바꾼다. */
+    private fun personalize(context: Context, text: String): String {
+        val name = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString("character_name", "").orEmpty()
+        if (name.isBlank()) return text
+        return characterPattern.replace(text) { match ->
+            val josa = josaPairs[match.groupValues[1]] ?: return@replace name
+            name + if (hasFinalConsonant(name)) josa.first else josa.second
+        }
+    }
+
     fun show(context: Context, kind: Int = 0) {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val messages = JSONArray(prefs.getString("messages", "[]"))
@@ -159,7 +187,7 @@ object DailyReminder {
         }
 
         if (prefs.getString("nickname", "").orEmpty() != nickname) return
-        val body = if (nickname.isNotEmpty() && (0..3).random() == 0) "$nickname, $message" else message
+        val body = personalize(context, if (nickname.isNotEmpty() && (0..3).random() == 0) "$nickname, $message" else message)
         createChannel(context)
 
         val open = PendingIntent.getActivity(
@@ -178,7 +206,7 @@ object DailyReminder {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("뿡뿡이")
+            .setContentTitle(personalize(context, "뿡뿡이"))
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -235,9 +263,9 @@ object DailyReminder {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "뿡뿡이 알림",
+            personalize(context, "뿡뿡이 알림"),
             NotificationManager.IMPORTANCE_DEFAULT
-        ).apply { description = "하루 마무리, 날씨 한마디, 뿡뿡이의 놀자 알림을 전해요." }
+        ).apply { description = personalize(context, "하루 마무리, 날씨 한마디, 뿡뿡이의 놀자 알림을 전해요.") }
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
