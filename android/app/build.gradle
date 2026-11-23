@@ -92,7 +92,7 @@ android {
     defaultConfig {
         buildConfigField "boolean", "BUNDLED_TEST_APP", project.hasProperty("nownowBundledTest").toString()
         buildConfigField "String", "NOWNOW_API_BASE_URL", '"' + nowNowApiBaseUrl + '"'
-        applicationId "com.mibandtest"
+        applicationId "com.mibandtest.demo"
         if (project.hasProperty("nownowLocalCmake")) {
             externalNativeBuild {
                 cmake { arguments "-DCMAKE_OBJECT_PATH_MAX=210" }

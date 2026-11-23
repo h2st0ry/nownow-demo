@@ -1,3 +1,25 @@
+> ## 🧪 이 레포는 데모 전용 앱이에요 (nownow-demo)
+> 원본: [poohgajoah/NowNow](https://github.com/poohgajoah/NowNow) main에서 복사했어요. 원본과 다른 점은 아래 세 가지뿐이에요.
+>
+> | | 원래 NowNow 앱 | NowNow 데모 앱 (이 레포) |
+> |---|---|---|
+> | 보여 줄 것 | 갤럭시워치 → 헬스 커넥트 → **일일 리포트** | 30일 데모 데이터 → **월간 리포트 · 채팅 기억** |
+> | 계정 | 실제 계정 | 데모 계정(김대리) |
+> | 헬스 커넥트 동기화 | 켜짐 | **꺼짐** (데모 데이터가 덮어써지지 않게) |
+> | 앱 ID / 이름 | `com.mibandtest` / NowNow | `com.mibandtest.demo` / NowNow 데모 |
+>
+> - 앱 ID가 달라서 한 휴대폰에 두 앱을 같이 깔 수 있어요.
+> - 동기화를 끈 곳: [`src/services/health/healthSync.ts`](src/services/health/healthSync.ts)의 `DEMO_DISABLE_SYNC`
+> - 백엔드는 원본과 같은 서버(같은 Supabase)를 써요. 데모 데이터 넣기/다시 넣기:
+>   ```bash
+>   cd backend
+>   node scripts/seedDemo.js                                   # 미리 보기만
+>   node scripts/seedDemo.js --reset --apply --email <데모 계정 이메일>   # 지우고 다시 넣기
+>   ```
+>   이야기 내용은 [`backend/scripts/demoScenario.js`](backend/scripts/demoScenario.js)에 있어요. 데모 계정 비밀번호는 레포에 적지 않아요.
+> - 원본의 새 변경을 받아오기: `git pull upstream main` (upstream = 원본 NowNow)
+> - 데모 앱에서도 일일 리포트 화면은 휴대폰 헬스 커넥트를 직접 읽어 보여 줘요. 일일 리포트 시연은 원래 NowNow 앱으로 해 주세요.
+
 <p align="center">
   <img src="src/assets/images/charactor.png" width="140" alt="뿡뿡이" />
 </p>

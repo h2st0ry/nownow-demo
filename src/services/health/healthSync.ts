@@ -55,9 +55,13 @@ function sinceFor(state: SyncState, now: number) {
 
 let running: Promise<SyncOutcome> | null = null;
 
+// 데모 앱(nownow-demo): 서버에 넣어 둔 30일 데모 데이터를 휴대폰 실제 기록이 덮어쓰지 않게 동기화를 끈다.
+// 갤럭시워치 → 헬스 커넥트 → 서버 흐름은 원래 NowNow 앱에서 보여 준다.
+const DEMO_DISABLE_SYNC = true;
+
 async function run(force: boolean): Promise<SyncOutcome> {
   const native = NativeModules.HealthConnectModule;
-  if (Platform.OS !== 'android' || typeof native?.syncHealthData !== 'function') {
+  if (DEMO_DISABLE_SYNC || Platform.OS !== 'android' || typeof native?.syncHealthData !== 'function') {
     return {status: 'unavailable'};
   }
   const {data} = await supabase.auth.getSession();
