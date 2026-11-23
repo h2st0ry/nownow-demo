@@ -1,13 +1,13 @@
 import React from 'react';
 import {StyleSheet, View, type ViewStyle} from 'react-native';
-import {shadows} from '../../../theme/shadows';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 
 interface ReportCardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: ViewStyle | ViewStyle[];
 }
 
+// 그림자 없는 납작한 카드 (애플 건강 앱 느낌)
 export default function ReportCard({children, style}: ReportCardProps) {
   const {theme} = useAppTheme();
 
@@ -20,8 +20,7 @@ export default function ReportCard({children, style}: ReportCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    ...shadows.card,
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
   },
 });

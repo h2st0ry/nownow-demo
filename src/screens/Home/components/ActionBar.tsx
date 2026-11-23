@@ -2,6 +2,7 @@ import React, {useEffect, useRef} from 'react';
 import {Animated, Pressable, StyleSheet, View} from 'react-native';
 
 import Text from '../../../components/AppText';
+import {shadows} from '../../../theme/shadows';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {interactionActions} from '../constants/homeContent';
 import type {PreferenceKey, UserPreferences} from '../types';
@@ -57,10 +58,12 @@ function ActionIcon({
       accessibilityLabel={action.label}
       onPress={onPress}
       style={({pressed}) => [styles.item, pressed && styles.pressed]}>
+      {/* 글씨 없이 흰 둥근 네모(레벨 카드와 같은 느낌) 안에 아이콘만. 고른 것만 분홍.
+          이름은 화면 읽기용(accessibilityLabel)으로만 둔다. */}
       <Animated.View
         style={[
           styles.iconWrap,
-          selected && {backgroundColor: theme.surface},
+          {backgroundColor: selected ? theme.accent : theme.surface},
           {
             transform: [
               {
@@ -80,15 +83,6 @@ function ActionIcon({
           </View>
         )}
       </Animated.View>
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.label,
-          {color: theme.text},
-          selected && {color: theme.accent},
-        ]}>
-        {action.label}
-      </Text>
     </Pressable>
   );
 }
@@ -129,21 +123,21 @@ const styles = StyleSheet.create({
   },
   item: {
     alignItems: 'center',
-    rowGap: 4,
-    width: 72,
+    width: 84,
   },
   pressed: {
     transform: [{scale: 0.9}],
   },
   iconWrap: {
+    ...shadows.subtle,
     alignItems: 'center',
-    borderRadius: 20,
-    height: 54,
+    borderRadius: 24,
+    height: 72,
     justifyContent: 'center',
-    width: 54,
+    width: 72,
   },
   emoji: {
-    fontSize: 38,
+    fontSize: 42,
   },
   badge: {
     alignItems: 'center',
@@ -162,9 +156,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     lineHeight: 13,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '700',
   },
 });

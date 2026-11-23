@@ -6,6 +6,7 @@ import {useAppTheme} from '../../../theme/ThemeProvider';
 import {metricConfig} from '../constants/reportData';
 import type {MetricType} from '../types';
 import AnimatedBar from './AnimatedBar';
+import CardHeader from './CardHeader';
 import ReportCard from './ReportCard';
 
 const HOURS_PER_DAY = 24;
@@ -62,7 +63,7 @@ export default function TrendChart({selectedMetric, healthData, hourlySteps, ste
 
   return (
     <ReportCard>
-      <Text style={[styles.title, {color: theme.text}]}>{title}</Text>
+      <CardHeader title={title} right={`단위: ${unit}`} />
     
       <View style={styles.chart}>
         {chartData.map((item, index) => {
@@ -110,20 +111,12 @@ export default function TrendChart({selectedMetric, healthData, hourlySteps, ste
       
       
 
-      <Text style={[styles.unitText, {color: theme.textMuted}]}>
-        단위: {unit}
-      </Text>
       {isSteps && !!stepsStatus && <Text style={[styles.stepsUnitText, {color: theme.textMuted}]}>{stepsStatus}</Text>}
     </ReportCard>
   );
 }
 
 const styles = StyleSheet.create({
-  title: {
-    fontSize: 17,
-    fontWeight: '800',
-    marginBottom: 18,
-  },
   chart: {
     alignItems: 'flex-end',
     flexDirection: 'row',

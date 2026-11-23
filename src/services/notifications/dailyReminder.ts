@@ -41,6 +41,12 @@ export async function setReminderNickname(value: unknown) {
   await DailyReminderModule.setNickname?.(nickname);
 }
 
+// 알림 속 '뿡뿡이'를 사용자가 정한 캐릭터 이름으로 바꾸게 넘겨준다(빈 값이면 뿡뿡이 그대로).
+export async function setReminderCharacterName(name: string) {
+  if (!isAvailable()) return;
+  await DailyReminderModule.setCharacterName?.(name.trim().slice(0, 10));
+}
+
 // Android 13부터는 알림을 띄우려면 사용자 허락이 필요하다.
 async function ensurePermission() {
   if (Number(Platform.Version) < 33) return true;

@@ -6,6 +6,8 @@ import {KeyRound, Mail, UserRound} from 'lucide-react-native';
 import {supabase} from '../../../services/supabase';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import SettingsSection from './SettingsSection';
+import {CHARACTER_NAME} from '../../../constants/app';
+import {CHARACTER_NAME_KEY, CHARACTER_NAME_MAX, useCharacterName, usePersonalize} from '../../../context/CharacterNameProvider';
 
 const genders = [
   {key: 'female', label: '여성'}, {key: 'male', label: '남성'},
@@ -14,8 +16,12 @@ const genders = [
 
 export default function AccountSettings({onProfileSaved}: {onProfileSaved: () => void}) {
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const [tab, setTab] = useState<'profile' | 'email' | 'password'>('profile');
   const [nickname, setNickname] = useState('');
+  // 캐릭터 이름(비우면 기본 이름 뿡뿡이)
+  const [characterName, setCharacterName] = useState('');
+  const {applyCharacterName} = useCharacterName();
   const [email, setEmail] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('');
@@ -34,6 +40,7 @@ export default function AccountSettings({onProfileSaved}: {onProfileSaved: () =>
       const {user} = auth.data;
       const metadata = user.user_metadata;
       setNickname(typeof metadata.nownow_chat_name === 'string' ? metadata.nownow_chat_name : '');
+      setCharacterName(typeof metadata[CHARACTER_NAME_KEY] === 'string' ? metadata[CHARACTER_NAME_KEY] : '');
       setEmail(user.email ?? '');
       setAge(typeof metadata.nownow_age === 'string' ? metadata.nownow_age : '');
       setGender(genders.some(item => item.key === metadata.nownow_gender) ? metadata.nownow_gender : '');
@@ -45,6 +52,7 @@ export default function AccountSettings({onProfileSaved}: {onProfileSaved: () =>
   const save = async () => {
     if (!ready || saving || tab === 'email') return;
     const name = nickname.trim();
+    const character = characterName.trim();
     if (tab === 'profile' && age && (!/^\d+$/.test(age) || +age < 18 || +age > 120)) {
       return setStatus('나이는 18~120세로 입력해 주세요.');
     }
@@ -55,8 +63,9 @@ export default function AccountSettings({onProfileSaved}: {onProfileSaved: () =>
     setStatus('');
     try {
       if (tab === 'profile') {
-        const {error} = await supabase.auth.updateUser({data: {nownow_chat_name: name || null, nownow_age: age || null, nownow_gender: gender || null}});
+        const {error} = await supabase.auth.updateUser({data: {nownow_chat_name: name || null, [CHARACTER_NAME_KEY]: character || null, nownow_age: age || null, nownow_gender: gender || null}});
         if (error) throw error;
+        applyCharacterName(character || null);
         onProfileSaved();
         setStatus('프로필을 저장했어요.');
       } else {
@@ -93,8 +102,11 @@ export default function AccountSettings({onProfileSaved}: {onProfileSaved: () =>
     ]} />
     <View style={[styles.card, {backgroundColor: theme.surface}]}>
       {ready && tab === 'profile' && <>
+        <Text style={{color: theme.text}}>캐릭터 이름</Text>
+        <TextInput accessibilityLabel="캐릭터 이름" placeholder={`비워 두면 ${CHARACTER_NAME}`}
+          placeholderTextColor={theme.textMuted} value={characterName} onChangeText={setCharacterName} maxLength={CHARACTER_NAME_MAX} editable={!saving} style={inputStyle} />
         <Text style={{color: theme.text}}>닉네임</Text>
-        <TextInput accessibilityLabel="닉네임" placeholder="뿡뿡이가 불러줬으면 하는 별명"
+        <TextInput accessibilityLabel="닉네임" placeholder={p('뿡뿡이가 불러줬으면 하는 별명')}
           placeholderTextColor={theme.textMuted} value={nickname} onChangeText={setNickname} maxLength={20} editable={!saving} style={inputStyle} />
         <Text style={{color: theme.text}}>성별</Text>
         <View style={styles.choices}>{genders.map(option => <Pressable key={option.key} disabled={saving}

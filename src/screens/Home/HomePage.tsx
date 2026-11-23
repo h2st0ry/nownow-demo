@@ -22,7 +22,7 @@ const ROOM_MIN_HEIGHT = 440;
 const DETAIL_OPEN_DELAY = 900;
 
 // 캐릭터 키우기 게임 느낌의 홈: 레벨 카드 → 캐릭터 방(행동 아이콘 줄 · 선택지 · 캐릭터)
-export default function HomePage() {
+export default function HomePage({onOpenChat}: {onOpenChat?: () => void}) {
   const {theme} = useAppTheme();
   const {
     userMood,
@@ -88,7 +88,8 @@ export default function HomePage() {
           mood={userMood}
           isInteracting={isInteracting}
           minHeight={ROOM_MIN_HEIGHT}
-          hideMessage={selectedAction !== null}>
+          hideMessage={selectedAction !== null}
+          onPressMessage={onOpenChat}>
           <ActionBar
             completedPreferences={userPreferences}
             selectedAction={selectedAction}

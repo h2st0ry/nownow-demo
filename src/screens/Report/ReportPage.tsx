@@ -4,13 +4,11 @@ import TextInput from '../../components/AppTextInput';
 import Text from '../../components/AppText';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
-import {Activity, Footprints, HeartPulse, Moon, Pencil, RefreshCw} from 'lucide-react-native';
+import {Pencil, RefreshCw} from 'lucide-react-native';
 import HealthCard from './components/HealthCard';
 import ActivityTrendCard from './components/ActivityTrendCard';
 import InsightCard from './components/InsightCard';
 import ReportHeader from './components/ReportHeader';
-import StressCauseCard from './components/StressCauseCard';
-import StressAnalysisCard from './components/StressAnalysisCard';
 import TrendChart from './components/TrendChart';
 import WeeklyReport from './components/WeeklyReport';
 import MonthlyReport from './components/MonthlyReport';
@@ -23,6 +21,8 @@ import {getTodayBloodPressure, saveHealthRecords} from '../../services/api/healt
 import {syncHealthData} from '../../services/health/healthSync';
 
 const {HealthConnectModule} = NativeModules;
+
+const PERMISSION_HINT = 'Health Connect의 데이터 읽기 권한을 확인해주세요.';
 
 const formatSleep = (minutes?: number) => {
   if (!minutes) return '-';
@@ -47,6 +47,12 @@ const formatNumber = (value?: number) => {
 
 export default function ReportPage() {
   const [tab, setTab] = useState<ReportTab>('daily');
+  // 주간/월간 상세 화면이 열려 있으면 맨 위 제목과 탭을 숨긴다 (상세 화면에 뒤로가기가 있다).
+  const [detailOpen, setDetailOpen] = useState(false);
+  const changeTab = (next: ReportTab) => {
+    setTab(next);
+    setDetailOpen(false);
+  };
   const {theme} = useAppTheme();
   // 모듈 로드 시점이 아니라 화면이 열릴 때의 날짜를 기준으로 한다.
   const dateText = useMemo(formatToday, []);
@@ -57,12 +63,8 @@ export default function ReportPage() {
   const {
     selectedMetric,
     setSelectedMetric,
-    stressPeriod,
-    setStressPeriod,
     peakStress,
     lowestStress,
-    stressCauses,
-    causesUnavailable,
   } = useReport(healthData?.heartRateSamples);
 
   const [bloodPressure, setBloodPressure] = useState<Awaited<ReturnType<typeof getTodayBloodPressure>>>([]);
@@ -92,7 +94,7 @@ export default function ReportPage() {
       } catch {
         setHealthData(null);
         setHealthReadFailed(true);
-        setHealthStatus('Health Connect의 데이터 읽기 권한을 확인해 주세요.');
+        setHealthStatus(PERMISSION_HINT);
       } finally {
         setHealthRevision(revision => revision + 1);
       }
@@ -156,17 +158,19 @@ export default function ReportPage() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         
+        {!detailOpen && <>
+        {/* 큰 제목 왼쪽, 날짜는 같은 줄 오른쪽 끝 (글자 아랫선 맞춤) */}
         <View style={styles.titleRow}>
           <Text style={[styles.pageTitle, {color: theme.text}]}>
             건강 리포트
           </Text>
-
           <Text style={[styles.dateText, {color: theme.textMuted}]}>
             {dateText}
           </Text>
         </View>
 
-        <ReportHeader tab={tab} onChangeTab={setTab} />
+        <ReportHeader tab={tab} onChangeTab={changeTab} />
+        </>}
 
     {tab === 'daily' ? (
     <>
@@ -175,7 +179,6 @@ export default function ReportPage() {
         title="오늘 걸음수"
         value={formatNumber(healthData?.stepsTotal)}
         unit="걸음"
-        Icon={Footprints}
         selected={selectedMetric === 'steps'}
         onPress={() => {setSelectedMetric('steps'); setInputOpen(false);}}
       />
@@ -183,7 +186,6 @@ export default function ReportPage() {
       <HealthCard
         title="수면시간"
         value={formatSleep(healthData?.latestSleepMinutes)}
-        Icon={Moon}
         selected={selectedMetric === 'sleep'}
         onPress={() => {setSelectedMetric('sleep'); setInputOpen(false);}}
       />
@@ -194,7 +196,6 @@ export default function ReportPage() {
         title={metricConfig.heartRate.label}
         value={formatNumber(healthData?.latestHeartRate)}
         unit={metricConfig.heartRate.unit}
-        Icon={HeartPulse}
         selected={selectedMetric === 'heartRate'}
         onPress={() => {setSelectedMetric('heartRate'); setInputOpen(false);}}
       />
@@ -207,7 +208,6 @@ export default function ReportPage() {
             : '-'
         }
         unit={metricConfig.bloodPressure.unit}
-        Icon={Activity}
         selected={selectedMetric === 'bloodPressure'}
         onPress={() => setSelectedMetric('bloodPressure')}
       />
@@ -220,13 +220,15 @@ export default function ReportPage() {
         <Pressable accessibilityRole="button" disabled={syncing || saving} onPress={() => void loadHealthData(true)}
           style={({pressed}) => [styles.recordButton, {backgroundColor: theme.surfaceMuted}, pressed && styles.actionPressed]}>
           <RefreshCw size={17} color={theme.textMuted} />
-          <Text style={[styles.actionLabel, {color: theme.text}]}>{syncing ? '동기화 중…' : '건강 기록 동기화'}</Text>
+          <Text style={[styles.actionLabel, {color: theme.text}]}>{syncing ? '동기화 중…' : '기록 동기화'}</Text>
         </Pressable>
         {selectedMetric === 'bloodPressure' && <Pressable accessibilityRole="button" accessibilityState={{expanded: inputOpen}} disabled={saving} onPress={() => setInputOpen(value => !value)}
           style={({pressed}) => [styles.recordButton, {backgroundColor: theme.accentMuted}, pressed && styles.actionPressed]}>
           <Pencil size={17} color={theme.textMuted} />
           <Text style={[styles.actionLabel, {color: theme.text}]}>{inputOpen ? '혈압 입력 닫기' : '혈압 직접 입력'}</Text>
         </Pressable>}
+        {/* 버튼 옆 안내: 평소엔 권한 안내를 늘 보여주고, 동기화 결과 문구가 있으면 그걸 보여준다 */}
+        <Text style={[styles.statusText, {color: theme.textMuted}]}>{healthStatus || PERMISSION_HINT}</Text>
       </View>
       {selectedMetric === 'bloodPressure' && inputOpen && <View style={[styles.pressureForm, {backgroundColor: theme.surface}]}>
         <TextInput accessibilityLabel="수축기 혈압" placeholder="수축기 혈압 (mmHg)" placeholderTextColor={theme.textMuted} style={[styles.pressureInput, {color: theme.text, backgroundColor: theme.surfaceMuted}]} keyboardType="number-pad" editable={!saving} value={systolic} onChangeText={setSystolic} />
@@ -236,17 +238,8 @@ export default function ReportPage() {
           <Text style={[styles.actionLabel, {color: theme.text}]}>{saving ? '저장 중…' : '현재 시각으로 저장'}</Text>
         </Pressable>
       </View>}
-      {!!healthStatus && <Text style={{color: theme.text}}>{healthStatus}</Text>}
 
-      <StressCauseCard
-        causes={stressCauses}
-        unavailable={causesUnavailable}
-        period={stressPeriod}
-        onPeriodChange={setStressPeriod}
-      />
-
-      <StressAnalysisCard />
-
+      {/* 스트레스 원인 키워드·원인 분석 카드는 월간 리포트로 옮겨서 여기선 뺐다 */}
       <InsightCard
         key={healthRevision}
         peakStress={peakStress}
@@ -256,9 +249,9 @@ export default function ReportPage() {
       />
       </>
     ) : tab === 'weekly' ? (
-      <WeeklyReport />
+      <WeeklyReport onDetailChange={setDetailOpen} />
     ) : (
-      <MonthlyReport />
+      <MonthlyReport onDetailChange={setDetailOpen} />
     )}
       </ScrollView>
     </SafeAreaView>
@@ -266,7 +259,8 @@ export default function ReportPage() {
 }
 
 const styles = StyleSheet.create({
-  recordActions: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
+  recordActions: {alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8},
+  statusText: {flex: 1, fontSize: 11, lineHeight: 18, minWidth: 140},
   recordButton: {alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 7, borderRadius: 16, minHeight: 44, paddingHorizontal: 14},
   actionLabel: {fontSize: 13, fontWeight: '700'},
   actionPressed: {opacity: 0.75},
@@ -281,26 +275,25 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: SCREEN_BOTTOM_INSET,
     paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
-    paddingTop: 18,
-    rowGap: 16,
+    paddingTop: 12,
+    rowGap: 14,
   },
   healthGrid: {
     flexDirection: 'row',
     gap: 10,
   },
   pageTitle: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '800',
-    marginBottom: -4,
+    letterSpacing: -0.5,
   },
   titleRow: {
-    alignItems: 'flex-end',
+    alignItems: 'baseline',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   dateText: {
-    fontSize: 13,
-    fontWeight: '500',
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

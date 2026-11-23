@@ -14,6 +14,8 @@ interface CharacterStageProps {
   minHeight: number;
   // 선택지가 열려 방이 작아지면 말풍선이 아이콘 줄을 덮어서 숨긴다.
   hideMessage?: boolean;
+  // 말풍선을 누르면 (채팅 탭으로)
+  onPressMessage?: () => void;
   // 방 위쪽에 놓을 것(행동 아이콘 줄)
   children?: React.ReactNode;
 }
@@ -37,6 +39,7 @@ export default function CharacterStage({
   isInteracting,
   minHeight,
   hideMessage = false,
+  onPressMessage,
   children,
 }: CharacterStageProps) {
   const {theme} = useAppTheme();
@@ -66,7 +69,7 @@ export default function CharacterStage({
       {children}
 
       <View style={styles.content}>
-        {!hideMessage && <CharacterMessage userMood={mood} />}
+        {!hideMessage && <CharacterMessage userMood={mood} onPress={onPressMessage} />}
 
         <View style={styles.characterArea}>
           {HEARTS.map(({left}, index) => (

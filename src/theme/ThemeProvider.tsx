@@ -14,6 +14,8 @@ export const appThemes = {
     input: '#FFFFFF',
     accent: '#E8A5B8',
     accentMuted: '#FFF3F7',
+    // 글씨·아이콘용 진한 분홍 (accent는 글씨로 쓰기엔 너무 옅다)
+    accentStrong: '#C25A7C',
     accentText: '#FFFFFF',
     text: '#2F352F',
     textMuted: '#788276',
@@ -40,6 +42,7 @@ export const appThemes = {
     input: '#282A25',
     accent: '#82616A',
     accentMuted: '#33292D',
+    accentStrong: '#EDA9BE',
     accentText: '#F4ECEF',
     text: '#F0F1EA',
     textMuted: '#B7BAAF',
