@@ -3,7 +3,9 @@ import {NativeModules, StyleSheet, View} from 'react-native';
 import Text from '../../../components/AppText';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {metricConfig} from '../constants/reportData';
+import CardHeader from './CardHeader';
 import ReportCard from './ReportCard';
+
 import AnimatedBar from './AnimatedBar';
 import TrendChart from './TrendChart';
 
@@ -51,7 +53,7 @@ export default function ActivityTrendCard({metric, revision}: {metric: 'steps' |
   const total = [...points.values()].reduce((sum, value) => sum + value, 0);
 
   return <ReportCard>
-    <Text style={[styles.title, {color: theme.text}]}>{config.chartTitle}</Text>
+    <CardHeader title={config.chartTitle} />
     {trend && points.size > 0 ? <>
       {points.size > 0 && <Text style={[styles.summary, {color: theme.text}]}>{Math.round(total).toLocaleString()} {config.unit}</Text>}
       <Text style={{color: theme.textMuted}}>어제 {timeLabel(start)} ~ 오늘 {timeLabel(Date.parse(trend.end))}</Text>
@@ -77,8 +79,7 @@ export default function ActivityTrendCard({metric, revision}: {metric: 'steps' |
 }
 
 const styles = StyleSheet.create({
-  title: {fontSize: 17, fontWeight: '800', marginBottom: 10},
-  summary: {fontSize: 24, fontWeight: '800', marginBottom: 4},
+  summary: {fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: 2},
   chart: {height: 170, flexDirection: 'row', gap: 3, alignItems: 'flex-end', marginTop: 12},
   column: {flex: 1, justifyContent: 'flex-end'},
   valueLabel: {fontSize: 8, textAlign: 'center', marginBottom: 8, width: '100%'},

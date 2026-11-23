@@ -8,9 +8,10 @@ import type {
 } from '../types';
 
 export const reportTabs: {key: ReportTab; label: string}[] = [
-  {key: 'daily', label: '실시간 리포트'},
-  {key: 'weekly', label: '주간 리포트'},
-  {key: 'monthly', label: '월간 리포트'},
+  {key: 'daily', label: '실시간'},
+  // 주간 리포트는 월간과 겹쳐서 탭에서 숨겼다(코드는 WeeklyReport.tsx에 그대로). 되살리려면 아래 줄을 다시 넣는다.
+  // {key: 'weekly', label: '주간'},
+  {key: 'monthly', label: '월간'},
 ];
 
 export const stressPeriodOptions: {key: StressPeriod; label: string}[] = [

@@ -1,15 +1,18 @@
 import React, {useEffect, useState} from 'react';
-import {ActivityIndicator, StyleSheet, View} from 'react-native';
-import {Sparkles} from 'lucide-react-native';
+import {ActivityIndicator, StyleSheet} from 'react-native';
 
 import Text from '../../../components/AppText';
 import {getStressAnalysis, type StressAnalysis} from '../../../services/api/reports';
 import {useAppTheme} from '../../../theme/ThemeProvider';
+import CardHeader from './CardHeader';
 import ReportCard from './ReportCard';
+import StatPair from './StatPair';
+import {usePersonalize} from '../../../context/CharacterNameProvider';
 
 // 뿡뿡이의 스트레스 원인 분석: 비슷한 상황이 있던 날의 건강 수치를 평소와 비교한 결론
 export default function StressAnalysisCard() {
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const [analysis, setAnalysis] = useState<StressAnalysis | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -30,12 +33,7 @@ export default function StressAnalysisCard() {
 
   return (
     <ReportCard>
-      <View style={styles.titleRow}>
-        <View style={[styles.iconWrap, {backgroundColor: theme.iconSurface}]}>
-          <Sparkles color={theme.icon} size={20} />
-        </View>
-        <Text style={[styles.title, {color: theme.text}]}>뿡뿡이의 스트레스 원인 분석</Text>
-      </View>
+      <CardHeader title={p('뿡뿡이의 원인 분석')} />
 
       {failed ? (
         <Text style={[styles.muted, {color: theme.textMuted}]}>지금은 분석을 불러올 수 없어요.</Text>
@@ -43,18 +41,10 @@ export default function StressAnalysisCard() {
         <ActivityIndicator style={styles.loading} color={theme.accent} />
       ) : top ? (
         <>
-          <View style={styles.compare}>
-            <View style={[styles.stat, {backgroundColor: theme.accentMuted}]}>
-              <Text style={[styles.statLabel, {color: theme.textMuted}]}>'{top.label}' 날</Text>
-              <Text style={[styles.statValue, {color: theme.text}]}>{top.avgStress}점</Text>
-              <Text style={[styles.statSub, {color: theme.textMuted}]}>{top.days}일 평균</Text>
-            </View>
-            <View style={[styles.stat, {backgroundColor: theme.surfaceMuted}]}>
-              <Text style={[styles.statLabel, {color: theme.textMuted}]}>다른 날</Text>
-              <Text style={[styles.statValue, {color: theme.text}]}>{top.baselineStress}점</Text>
-              <Text style={[styles.statSub, {color: theme.textMuted}]}>{top.baselineDays}일 평균</Text>
-            </View>
-          </View>
+          <StatPair stats={[
+            {label: `${top.label} 있던 날`, value: top.avgStress, unit: '점', sub: `${top.days}일 평균`, color: theme.accentStrong},
+            {label: '다른 날', value: top.baselineStress, unit: '점', sub: `${top.baselineDays}일 평균`},
+          ]} />
           <Text style={[styles.body, {color: theme.text}]}>{top.conclusion}</Text>
           {analysis.causes.slice(1, 3).map(cause => (
             <Text key={`${cause.kind}:${cause.label}`} style={[styles.muted, {color: theme.textMuted}]}>
@@ -78,61 +68,20 @@ export default function StressAnalysisCard() {
 }
 
 const styles = StyleSheet.create({
-  titleRow: {
-    alignItems: 'center',
-    columnGap: 10,
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    borderRadius: 12,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
   loading: {
     marginVertical: 12,
   },
-  compare: {
-    columnGap: 10,
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  stat: {
-    borderRadius: 14,
-    flex: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  statSub: {
-    fontSize: 11,
-    marginTop: 1,
-  },
   body: {
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 8,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 6,
   },
   muted: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
   },
   note: {
-    fontSize: 11,
-    marginTop: 8,
+    fontSize: 12,
+    marginTop: 10,
   },
 });

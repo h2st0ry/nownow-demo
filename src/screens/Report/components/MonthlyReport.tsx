@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, BackHandler, Pressable, StyleSheet, View} from 'react-native';
+import {ActivityIndicator, BackHandler, StyleSheet, View} from 'react-native';
 import Text from '../../../components/AppText';
-import {Activity, ChevronLeft, Flame, Footprints, Moon, Sparkles} from 'lucide-react-native';
+
 import {format, getDay, parseISO, subMonths} from 'date-fns';
 
 import {useAppTheme} from '../../../theme/ThemeProvider';
@@ -9,14 +9,15 @@ import {getStressLevel, stressLevels} from '../constants/reportData';
 import {getMonthlyReport, type MonthlyReportData} from '../../../services/api/reports';
 import {createMockMonthlyReport} from '../constants/monthlyReportMock';
 import type {DailyStress} from '../types';
+import CardHeader from './CardHeader';
+import DetailHeader from './DetailHeader';
 import HealthCard from './HealthCard';
-import PeakStressDayCard from './PeakStressDayCard';
 import ReportCard from './ReportCard';
-import {KeywordChips} from './StressKeywordCard';
-import WeeklyReportItem from './WeeklyReportItem';
+import KeywordDonut from './KeywordDonut';
+import WeeklyReportItem, {ReportList} from './WeeklyReportItem';
 
 // UI 확인용: true 면 서버 대신 목업 데이터로 월간 리포트를 그린다.
-const USE_MONTHLY_MOCK = true;
+const USE_MONTHLY_MOCK = false;
 const MONTH_COUNT = 3;
 const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'];
 
@@ -52,14 +53,12 @@ function MonthlySummary({report}: {report: MonthlyReportData}) {
           value={report.averageStressScore === null ? '-' : String(report.averageStressScore)}
           unit={report.averageStressScore === null ? undefined : '점'}
           caption={diffText ?? level?.label}
-          Icon={Activity}
         />
         <HealthCard
           title="스트레스 높은 날"
           value={String(report.highStressDays)}
           unit="일"
           caption={`기록한 ${report.dayCount}일 중`}
-          Icon={Flame}
         />
       </View>
       <View style={styles.grid}>
@@ -67,20 +66,19 @@ function MonthlySummary({report}: {report: MonthlyReportData}) {
           title="평균 수면"
           value={hours(report.averageSleepMinutes)}
           unit={report.averageSleepMinutes === null ? undefined : '시간'}
-          Icon={Moon}
         />
         <HealthCard
           title="평균 걸음수"
           value={count(report.averageSteps)}
           unit={report.averageSteps === null ? undefined : '걸음'}
-          Icon={Footprints}
         />
       </View>
     </>
   );
 }
 
-// 달력: 날마다 스트레스 단계 색을 옅게 깔고, 원인 키워드를 고르면 그날을 진하게 채운다.
+// 달력: 날마다 스트레스 단계 색으로 숫자를 쓰고, 원인 키워드를 고르면 그날을 진하게 채운다.
+// 따로 카드를 만들지 않고 원인 분석 카드 안에 들어간다.
 function StressCalendar({report, highlighted}: {report: MonthlyReportData; highlighted: Set<string>}) {
   const {theme} = useAppTheme();
   const byDate = new Map(report.days.map(day => [day.date, day]));
@@ -93,8 +91,7 @@ function StressCalendar({report, highlighted}: {report: MonthlyReportData; highl
   const weeks = Array.from({length: cells.length / 7}, (_, i) => cells.slice(i * 7, i * 7 + 7));
 
   return (
-    <ReportCard>
-      <Text style={[styles.title, styles.calendarTitle, {color: theme.text}]}>날짜별 스트레스</Text>
+    <View>
 
       {/* 한 줄에 7칸을 직접 묶는다(퍼센트 너비는 반올림 때문에 6칸에서 줄이 넘어갔다). */}
       <View style={styles.weekRow}>
@@ -145,49 +142,71 @@ function StressCalendar({report, highlighted}: {report: MonthlyReportData; highl
           </View>
         ))}
       </View>
-    </ReportCard>
+    </View>
   );
 }
 
 // 일간 탭의 '뿡뿡이의 스트레스 원인 분석' 카드와 같은 모양
-function MonthlyAnalysisCard({analysis}: {analysis: MonthlyReportData['analysis']}) {
+function MonthlyAnalysisCard({analysis, keywords, calendar}: {
+  analysis: MonthlyReportData['analysis'];
+  keywords?: React.ReactNode;
+  calendar?: React.ReactNode;
+}) {
   const {theme} = useAppTheme();
   const [top, ...rest] = analysis.causes;
+  const others = rest.filter(cause => cause.label !== top?.label).slice(0, 2);
   return (
     <ReportCard>
-      <View style={styles.iconTitleRow}>
-        <View style={[styles.iconWrap, {backgroundColor: theme.iconSurface}]}>
-          <Sparkles color={theme.icon} size={20} />
-        </View>
-        <Text style={[styles.title, {color: theme.text}]}>이번 달 스트레스 원인 분석</Text>
-      </View>
+      <CardHeader title="이번 달 스트레스 원인" />
 
+      {/* 숫자보다 '무엇이 원인인지'가 먼저 읽히게: 원인 이름을 크게, 설명은 문장으로 */}
       {top ? (
         <>
-          <View style={styles.compare}>
-            <View style={[styles.stat, {backgroundColor: theme.accentMuted}]}>
-              <Text numberOfLines={1} style={[styles.statLabel, {color: theme.textMuted}]}>'{top.label}' 날</Text>
-              <Text style={[styles.statValue, {color: theme.text}]}>{top.avgStress}점</Text>
-              <Text style={[styles.statSub, {color: theme.textMuted}]}>{top.days}일 평균</Text>
-            </View>
-            <View style={[styles.stat, {backgroundColor: theme.surfaceMuted}]}>
-              <Text style={[styles.statLabel, {color: theme.textMuted}]}>다른 날</Text>
-              <Text style={[styles.statValue, {color: theme.text}]}>{top.baselineStress}점</Text>
-              <Text style={[styles.statSub, {color: theme.textMuted}]}>평균</Text>
-            </View>
+          {/* 가장 큰 원인: 이름은 왼쪽에 크게, 설명은 오른쪽에 */}
+          <View style={styles.topCause}>
+            <Text style={[styles.topCauseName, {color: theme.text}]}>{top.label}</Text>
+            <Text style={[styles.topCauseText, {color: theme.text}]}>{top.conclusion}</Text>
           </View>
-          <Text style={[styles.body, {color: theme.text}]}>{top.conclusion}</Text>
-          {rest.filter(cause => cause.label !== top.label).slice(0, 2).map(cause => (
-            <Text key={`${cause.kind}:${cause.label}`} style={[styles.muted, {color: theme.textMuted}]}>
-              · '{cause.label}' 날도 평소보다 {cause.diff}점 높았어요 ({cause.days}일)
-            </Text>
-          ))}
-          <Text style={[styles.note, {color: theme.textMuted}]}>
-            이번 달 하루 정리와 스트레스 점수로 본 경향이에요. 진단이 아니에요.
-          </Text>
+
+          {others.length > 0 && (
+            // 구분선은 '이런 날도…' 소제목 위에, 아래 줄들 사이에는 첫 줄 빼고 선
+            <View style={[styles.others, {borderTopColor: theme.border}]}>
+              <Text style={[styles.causeName, {color: theme.text}]}>이런 날도 스트레스가 높았어요</Text>
+              {others.map((cause, index) => (
+                <View
+                  key={`${cause.kind}:${cause.label}`}
+                  style={[styles.otherRow, index > 0 && [styles.otherRowDivided, {borderTopColor: theme.border}]]}>
+                  <Text style={[styles.otherName, {color: theme.text}]}>{cause.label}</Text>
+                  <Text style={[styles.otherMeta, {color: theme.textMuted}]}>{cause.days}일 · 평소보다 높음</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </>
       ) : (
         <Text style={[styles.body, {color: theme.text}]}>{analysis.message}</Text>
+      )}
+
+      {keywords && (
+        <>
+          <View style={[styles.divider, {backgroundColor: theme.border}]} />
+          {keywords}
+        </>
+      )}
+
+      {/* 원그래프 아래, 달력 구분선 위 */}
+      {top && (
+        <Text style={[styles.note, {color: theme.textMuted}]}>
+          이번 달 하루 정리와 스트레스 점수로 본 경향이에요. 진단이 아니에요.
+        </Text>
+      )}
+
+      {calendar && (
+        <>
+          <View style={[styles.sectionDivider, {backgroundColor: theme.border}]} />
+          <Text style={[styles.sectionTitle, {color: theme.text}]}>날짜별 스트레스</Text>
+          {calendar}
+        </>
       )}
     </ReportCard>
   );
@@ -223,27 +242,18 @@ function MonthlyReportDetail({month, onBack}: {month: Month; onBack: () => void}
     day.finalDailyStressScore !== null && !day.missing?.includes('demo_fixture')
       ? [{date: day.date, score: day.finalDailyStressScore, causes: day.causes}] : []), [report]);
 
-  const peakDay = useMemo(() => scoredDays.reduce<DailyStress | null>(
-    (max, day) => (!max || day.score > max.score ? day : max), null), [scoredDays]);
-
   const highlighted = useMemo(() => new Set(selectedCause
     ? scoredDays.filter(day => day.causes.includes(selectedCause)).map(day => day.date) : []),
   [selectedCause, scoredDays]);
 
   return (
     <>
-      <View style={[styles.detailHeader, {backgroundColor: theme.surface}]}>
-        <Pressable onPress={onBack} style={({pressed}) => [styles.backButton, pressed && {backgroundColor: theme.pressed}]}>
-          <ChevronLeft color={theme.text} size={22} />
-        </Pressable>
-        <View style={styles.monthInfo}>
-          <Text style={[styles.monthLabel, {color: theme.text}]}>{month.label}</Text>
-          <Text style={[styles.monthRange, {color: theme.textMuted}]}>
-            {report ? `${format(parseISO(report.from), 'M.d')} ~ ${format(parseISO(report.to), 'M.d')}` : ''}
-          </Text>
-        </View>
-        <View style={styles.backButton} />
-      </View>
+      <DetailHeader
+        backLabel="월간"
+        onBack={onBack}
+        title={month.label}
+        subtitle={report ? `${format(parseISO(report.from), 'M.d')} ~ ${format(parseISO(report.to), 'M.d')}` : undefined}
+      />
 
       {!report || report.dayCount === 0 ? (
         <ReportCard>
@@ -257,23 +267,19 @@ function MonthlyReportDetail({month, onBack}: {month: Month; onBack: () => void}
         </ReportCard>
       ) : (
         <>
-          {peakDay && (
-            <PeakStressDayCard
-              day={peakDay}
-              compact
-              // 원인 키워드 버튼: 누르면 아래 달력에 그 원인이 나온 날이 칠해진다.
-              footer={report.causes.length > 0 && (
-                <KeywordChips
-                  causes={report.causes}
-                  selectedCause={selectedCause}
-                  onSelectCause={setSelectedCause}
-                  style={styles.chipsInCard}
-                />
-              )}
-            />
-          )}
-          <StressCalendar report={report} highlighted={highlighted} />
-          <MonthlyAnalysisCard analysis={report.analysis} />
+          {/* 원인 분석 카드 안에 키워드 버튼: 누르면 아래 달력에 그 원인이 나온 날이 칠해진다. */}
+          {/* 원인 분석 + 키워드 + 달력을 한 카드로 (키워드를 누르면 바로 아래 달력이 바뀐다) */}
+          <MonthlyAnalysisCard
+            analysis={report.analysis}
+            keywords={report.causes.length > 0 && (
+              <KeywordDonut
+                causes={report.causes}
+                selectedCause={selectedCause}
+                onSelectCause={setSelectedCause}
+              />
+            )}
+            calendar={<StressCalendar report={report} highlighted={highlighted} />}
+          />
           <MonthlySummary report={report} />
         </>
       )}
@@ -281,32 +287,34 @@ function MonthlyReportDetail({month, onBack}: {month: Month; onBack: () => void}
   );
 }
 
-export default function MonthlyReport() {
+export default function MonthlyReport({onDetailChange}: {onDetailChange?: (open: boolean) => void}) {
   const months = useMemo(() => getRecentMonths(MONTH_COUNT), []);
   const [selected, setSelected] = useState<Month | null>(null);
   const handleBack = useCallback(() => setSelected(null), []);
 
+  // 상세 화면이 열리고 닫히는 걸 리포트 화면에 알린다 (맨 위 제목·탭 숨김용)
+  useEffect(() => {
+    onDetailChange?.(selected !== null);
+  }, [selected, onDetailChange]);
+
   if (selected) return <MonthlyReportDetail month={selected} onBack={handleBack} />;
 
   return (
-    <>
-      {months.map(month => (
-        <WeeklyReportItem key={month.key} title={month.label} onPress={() => setSelected(month)} />
+    <ReportList>
+      {months.map((month, index) => (
+        <WeeklyReportItem
+          key={month.key}
+          title={month.label}
+          last={index === months.length - 1}
+          onPress={() => setSelected(month)}
+        />
       ))}
-    </>
+    </ReportList>
   );
 }
 
 const styles = StyleSheet.create({
-  detailHeader: {alignItems: 'center', borderRadius: 16, flexDirection: 'row', paddingHorizontal: 6, paddingVertical: 8},
-  backButton: {alignItems: 'center', borderRadius: 18, height: 36, justifyContent: 'center', width: 36},
-  monthInfo: {alignItems: 'center', flex: 1},
-  monthLabel: {fontSize: 15, fontWeight: '800'},
-  monthRange: {fontSize: 12, marginTop: 2},
   grid: {flexDirection: 'row', gap: 10},
-  chipsInCard: {marginTop: 12},
-  title: {fontSize: 17, fontWeight: '800'},
-  calendarTitle: {marginBottom: 14},
   weekRow: {flexDirection: 'row'},
   weekday: {flex: 1, fontSize: 12, fontWeight: '700', marginBottom: 6, textAlign: 'center'},
   cell: {aspectRatio: 1, flex: 1, padding: 3},
@@ -315,19 +323,26 @@ const styles = StyleSheet.create({
   cellText: {fontSize: 18, fontWeight: '800'},
   future: {opacity: 0.4},
   divider: {height: StyleSheet.hairlineWidth, marginBottom: 12, marginTop: 10},
+  // 카드 안에서 원인 부분과 달력 부분을 나누는 선과 소제목
+  sectionDivider: {height: 1, marginBottom: 14, marginTop: 16},
+  // '이번 달 스트레스 원인' 카드 제목과 같은 글씨 (CardHeader 가운데 제목: 18, 800)
+  sectionTitle: {fontSize: 18, fontWeight: '800', marginBottom: 20, textAlign: 'center'},
   legend: {columnGap: 14, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center'},
   legendItem: {alignItems: 'center', columnGap: 5, flexDirection: 'row'},
   legendDot: {borderRadius: 5, height: 10, width: 10},
   legendText: {fontSize: 12, fontWeight: '600'},
-  iconTitleRow: {alignItems: 'center', columnGap: 10, flexDirection: 'row', marginBottom: 12},
-  iconWrap: {alignItems: 'center', borderRadius: 12, height: 36, justifyContent: 'center', width: 36},
-  compare: {columnGap: 10, flexDirection: 'row', marginBottom: 12},
-  stat: {borderRadius: 14, flex: 1, paddingHorizontal: 12, paddingVertical: 10},
-  statLabel: {fontSize: 12, fontWeight: '600'},
-  statValue: {fontSize: 22, fontWeight: '800', marginTop: 2},
-  statSub: {fontSize: 11, marginTop: 1},
   loading: {marginVertical: 12},
-  body: {fontSize: 14, lineHeight: 21, marginBottom: 8},
-  muted: {fontSize: 12, lineHeight: 18},
-  note: {fontSize: 11, marginTop: 8},
+  topCause: {alignItems: 'center', flexDirection: 'row', gap: 26},
+  topCauseName: {fontSize: 26, fontWeight: '800', letterSpacing: -0.4, maxWidth: '45%'},
+  topCauseText: {flex: 1, fontSize: 16, lineHeight: 24},
+  // '이런 날도…' 소제목
+  causeName: {fontSize: 19, fontWeight: '800', letterSpacing: -0.2, marginBottom: 6},
+  body: {fontSize: 16, lineHeight: 24},
+  others: {borderTopWidth: StyleSheet.hairlineWidth, marginTop: 16, paddingTop: 14},
+  otherRow: {alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8},
+  otherRowDivided: {borderTopWidth: StyleSheet.hairlineWidth},
+  otherName: {fontSize: 16, fontWeight: '600'},
+  otherMeta: {fontSize: 13},
+  muted: {fontSize: 13, lineHeight: 19},
+  note: {fontSize: 12, marginTop: 14, textAlign: 'center'},
 });
