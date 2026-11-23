@@ -82,6 +82,7 @@ function StressCalendar({report, highlighted}: {report: MonthlyReportData; highl
   const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
   const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({length: daysInMonth}, (_, i) => i + 1)];
   while (cells.length % 7) cells.push(null);
+  const weeks = Array.from({length: cells.length / 7}, (_, i) => cells.slice(i * 7, i * 7 + 7));
 
   return (
     <ReportCard>
@@ -89,37 +90,43 @@ function StressCalendar({report, highlighted}: {report: MonthlyReportData; highl
         <CalendarDays color={theme.accent} size={20} />
         <Text style={[styles.cardTitle, styles.titleInline, {color: theme.text}]}>날짜별 스트레스</Text>
       </View>
-      <View style={styles.grid}>
+      {/* 한 줄에 7칸을 직접 묶는다(퍼센트 너비는 반올림 때문에 6칸에서 줄이 넘어갔다). */}
+      <View style={styles.weekRow}>
         {WEEKDAYS.map(label => (
           <Text key={label} style={[styles.weekday, {color: theme.textMuted}]}>{label}</Text>
         ))}
-        {cells.map((dayNumber, index) => {
-          if (dayNumber === null) return <View key={`empty-${index}`} style={styles.cell} />;
-          const date = `${report.month}-${String(dayNumber).padStart(2, '0')}`;
-          const score = byDate.get(date)?.finalDailyStressScore ?? null;
-          const level = score === null ? null : getStressLevel(score);
-          const future = dayNumber > lastDate;
-          const marked = highlighted.has(date);
-          return (
-            <View key={date} style={styles.cell}>
-              <View
-                accessibilityLabel={`${dayNumber}일 ${score === null ? '기록 없음' : `${score}점 ${level?.label}`}`}
-                style={[
-                  styles.cellInner,
-                  {backgroundColor: level ? theme[level.colorKey] : theme.surfaceMuted},
-                  future && styles.future,
-                  marked && {borderColor: theme.text},
-                ]}>
-                <Text style={[styles.cellText, {color: level ? theme.surface : theme.textMuted}]}>{dayNumber}</Text>
-              </View>
-            </View>
-          );
-        })}
       </View>
+      {weeks.map((week, row) => (
+        <View key={`week-${row}`} style={styles.weekRow}>
+          {week.map((dayNumber, col) => {
+            if (dayNumber === null) return <View key={`empty-${row}-${col}`} style={styles.cell} />;
+            const date = `${report.month}-${String(dayNumber).padStart(2, '0')}`;
+            const score = byDate.get(date)?.finalDailyStressScore ?? null;
+            const level = score === null ? null : getStressLevel(score);
+            const future = dayNumber > lastDate;
+            const marked = highlighted.has(date);
+            return (
+              <View key={date} style={styles.cell}>
+                <View
+                  accessibilityLabel={`${dayNumber}일 ${score === null ? '기록 없음' : `${score}점 ${level?.label}`}`}
+                  style={[
+                    styles.cellInner,
+                    {backgroundColor: level ? theme[level.colorKey] : theme.surfaceMuted},
+                    level?.colorKey === 'icon' && styles.calm,
+                    future && styles.future,
+                    marked && {borderColor: theme.text},
+                  ]}>
+                  <Text style={[styles.cellText, {color: level ? theme.surface : theme.textMuted}]}>{dayNumber}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      ))}
       <View style={styles.legend}>
         {[...stressLevels].reverse().map(level => (
           <View key={level.label} style={styles.legendItem}>
-            <View style={[styles.legendDot, {backgroundColor: theme[level.colorKey]}]} />
+            <View style={[styles.legendDot, {backgroundColor: theme[level.colorKey]}, level.colorKey === 'icon' && styles.calm]} />
             <Text style={[styles.legendText, {color: theme.textMuted}]}>{level.label}</Text>
           </View>
         ))}
@@ -254,9 +261,11 @@ const styles = StyleSheet.create({
   statValue: {fontSize: 24, fontWeight: '800', marginTop: 2},
   statValueSmall: {fontSize: 18, fontWeight: '800', marginTop: 2},
   statSub: {fontSize: 11, marginTop: 1},
-  grid: {flexDirection: 'row', flexWrap: 'wrap'},
-  weekday: {fontSize: 11, fontWeight: '700', marginBottom: 6, textAlign: 'center', width: `${100 / 7}%`},
-  cell: {aspectRatio: 1, padding: 3, width: `${100 / 7}%`},
+  weekRow: {flexDirection: 'row'},
+  weekday: {flex: 1, fontSize: 11, fontWeight: '700', marginBottom: 6, textAlign: 'center'},
+  cell: {aspectRatio: 1, flex: 1, padding: 3},
+  // 편안함(가장 낮은 단계)은 진한 색이 무거워 보여 옅게
+  calm: {opacity: 0.45},
   cellInner: {alignItems: 'center', borderColor: 'transparent', borderRadius: 10, borderWidth: 2.5, flex: 1, justifyContent: 'center'},
   future: {opacity: 0.35},
   cellText: {fontSize: 12, fontWeight: '700'},
