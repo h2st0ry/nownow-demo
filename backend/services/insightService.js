@@ -111,6 +111,10 @@ async function getWeeklyReport(user_id, weekStart) {
     getSummaries(user_id, weekStart, to)
   ]);
   const causes = countCauses(summaries, true);
+  // 날짜별 원인: 그날 요약들의 키워드를 주간 집계와 같은 기준으로 모은다.
+  const causesOf = date => countCauses(
+    summaries.filter(row => row.created_at && kstDateOf(row.created_at) === date), true
+  ).map(({ cause }) => cause);
 
   return {
     weekStart,
@@ -122,7 +126,8 @@ async function getWeeklyReport(user_id, weekStart) {
       dailyStress: day.dailyStress,
       sleepMinutes: day.sleep.minutes,
       totalSteps: day.steps.total,
-      missing: day.missing
+      missing: day.missing,
+      causes: causesOf(day.date)
     })),
     causes,
     topCause: causes[0]?.cause ?? null
