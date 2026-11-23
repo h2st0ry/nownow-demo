@@ -33,6 +33,40 @@ export async function getStressAnalysis() {
   return data;
 }
 
+export interface MonthlyReportData {
+  month: string; // YYYY-MM
+  from: string;
+  to: string;
+  dayCount: number;
+  averageStressScore: number | null;
+  previousAverageStressScore: number | null;
+  highStressDays: number;
+  averageSleepMinutes: number | null;
+  averageSteps: number | null;
+  peakDay: {date: string; score: number} | null;
+  days: {
+    date: string;
+    finalDailyStressScore: number | null;
+    sleepMinutes: number | null;
+    totalSteps: number | null;
+    missing?: string[];
+    causes: string[];
+  }[];
+  causes: {cause: string; count: number}[];
+  topCause: string | null;
+  analysis: {
+    status: 'found' | 'insufficient';
+    message: string;
+    causes: Pick<StressCauseFinding, 'label' | 'kind' | 'days' | 'avgStress' | 'baselineStress' | 'diff' | 'conclusion'>[];
+  };
+}
+
+// 월간 리포트 (month: YYYY-MM, 이번 달이면 오늘까지)
+export async function getMonthlyReport(month: string) {
+  const {data} = await request<{data: MonthlyReportData}>('GET', `/api/reports/monthly/${month}`);
+  return data;
+}
+
 export async function createAiRecommendation() {
   const {data} = await request<{data: AiRecommendation}>('POST', '/api/reports/ai-recommendation');
   return data;

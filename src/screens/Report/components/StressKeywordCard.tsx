@@ -10,12 +10,16 @@ interface StressKeywordCardProps {
   causes: WeeklyReport['causes'];
   selectedCause: string | null;
   onSelectCause: (cause: string | null) => void;
+  hint?: string;
+  emptyText?: string;
 }
 
 export default function StressKeywordCard({
   causes,
   selectedCause,
   onSelectCause,
+  hint = '키워드를 누르면 해당 날짜가 그래프에 표시돼요.',
+  emptyText = '이번 주에는 기록된 원인이 없어요.',
 }: StressKeywordCardProps) {
   const {theme} = useAppTheme();
 
@@ -27,12 +31,12 @@ export default function StressKeywordCard({
 
       {causes.length === 0 ? (
         <Text style={[styles.hint, {color: theme.textMuted}]}>
-          이번 주에는 기록된 원인이 없어요.
+          {emptyText}
         </Text>
       ) : (
         <>
           <Text style={[styles.hint, {color: theme.textMuted}]}>
-            키워드를 누르면 해당 날짜가 그래프에 표시돼요.
+            {hint}
           </Text>
           <View style={styles.chips}>
             {causes.map(({cause, count}) => {

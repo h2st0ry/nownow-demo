@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ScrollView, StyleSheet, useWindowDimensions} from 'react-native';
+import {ScrollView, StyleSheet} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 
@@ -12,22 +12,18 @@ import ChoiceHistorySheet from './components/ChoiceHistorySheet';
 import MusicGenrePicker from './components/MusicGenrePicker';
 import type {MusicTrack} from '../../services/api/music';
 import {useCharacterHome} from './hooks/useCharacterHome';
-import {SCREEN_BOTTOM_INSET, SCREEN_HORIZONTAL_PADDING} from '../../theme/layout';
+import {SCREEN_HORIZONTAL_PADDING} from '../../theme/layout';
 import {useAppTheme} from '../../theme/ThemeProvider';
 import type {PreferenceKey} from './types';
 
-// 상태바·탭바·레벨 카드·여백이 차지하는 높이. 나머지를 캐릭터 방에 준다.
-const HOME_CHROME_HEIGHT = 206;
-// 방 안에 행동 아이콘 줄·말풍선·캐릭터가 다 들어가는 높이
+// 방 안에 행동 아이콘 줄·말풍선·캐릭터가 다 들어가는 최소 높이. 화면이 크면 탭바까지 늘어난다.
 const ROOM_MIN_HEIGHT = 440;
-const ROOM_MAX_HEIGHT = 720;
 // 고른 뒤 하트 효과를 보여 주고 아래 창을 연다.
 const DETAIL_OPEN_DELAY = 900;
 
 // 캐릭터 키우기 게임 느낌의 홈: 레벨 카드 → 캐릭터 방(행동 아이콘 줄 · 선택지 · 캐릭터)
 export default function HomePage() {
   const {theme} = useAppTheme();
-  const {height: windowHeight} = useWindowDimensions();
   const {
     userMood,
     isInteracting,
@@ -66,11 +62,6 @@ export default function HomePage() {
     if (key === null) setMusicVideoId(null);
     setDetailKey(key);
   };
-  // 오늘 고른 것은 레벨 뱃지의 기록 창에서 본다. 그 자리까지 캐릭터 방이 쓴다.
-  const roomHeight = Math.min(
-    ROOM_MAX_HEIGHT,
-    Math.max(ROOM_MIN_HEIGHT, windowHeight - HOME_CHROME_HEIGHT),
-  );
 
   return (
     <SafeAreaView
@@ -96,7 +87,7 @@ export default function HomePage() {
         <CharacterStage
           mood={userMood}
           isInteracting={isInteracting}
-          height={roomHeight}
+          minHeight={ROOM_MIN_HEIGHT}
           hideMessage={selectedAction !== null}>
           <ActionBar
             completedPreferences={userPreferences}
@@ -133,8 +124,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // 캐릭터 방이 탭바 바로 위까지 차도록 아래 여백 없이 늘린다.
   content: {
-    paddingBottom: SCREEN_BOTTOM_INSET,
+    flexGrow: 1,
     paddingHorizontal: SCREEN_HORIZONTAL_PADDING,
     paddingTop: 12,
     rowGap: 12,
