@@ -5,6 +5,19 @@ export async function getTodayBloodPressure() {
   return data.map(row => ({time: row.measured_at, systolic: row.systolic, diastolic: row.diastolic}));
 }
 
+// 데모 앱: 오늘 걸음 수·수면은 휴대폰이 아니라 서버(데모 계정 기록)에서 읽는다. 심박은 워치 → 헬스 커넥트 그대로.
+export interface ActivityTrend {start: string; end: string; points: {time: string; value: number}[]}
+export interface TodayActivity {
+  stepsTotal: number | null;
+  latestSleepMinutes: number;
+  steps: ActivityTrend;
+  sleep: ActivityTrend;
+}
+export async function getTodayActivity() {
+  const {data} = await request<{data: TodayActivity}>('GET', '/api/health/today-activity');
+  return data;
+}
+
 // 직접 입력한 혈압 저장용. Health Connect 기록은 services/health/healthSync.ts가 증분 동기화로 보낸다.
 // (예전에는 여기서 오늘 걸음 수 합계를 하루 한 행으로 보냈는데, 이제 시간별 행으로 바뀌어서
 //  같이 쓰면 걸음 수가 두 번 더해진다. 그래서 걸음 수·수면·심박은 받지 않는다.)

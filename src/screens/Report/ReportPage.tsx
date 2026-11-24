@@ -17,7 +17,7 @@ import {useReport} from './hooks/useReport';
 import type {ReportTab} from './types';
 import {SCREEN_BOTTOM_INSET, SCREEN_HORIZONTAL_PADDING} from '../../theme/layout';
 import {useAppTheme} from '../../theme/ThemeProvider';
-import {getTodayBloodPressure, saveHealthRecords} from '../../services/api/health';
+import {getTodayActivity, getTodayBloodPressure, saveHealthRecords, type TodayActivity} from '../../services/api/health';
 import {syncHealthData} from '../../services/health/healthSync';
 
 const {HealthConnectModule} = NativeModules;
@@ -67,6 +67,9 @@ export default function ReportPage() {
     lowestStress,
   } = useReport(healthData?.heartRateSamples);
 
+  // 데모 앱: 걸음 수·수면은 서버 기록(데모 계정)으로 보여 준다.
+  const [activity, setActivity] = useState<TodayActivity | null>(null);
+  const [activityFailed, setActivityFailed] = useState(false);
   const [bloodPressure, setBloodPressure] = useState<Awaited<ReturnType<typeof getTodayBloodPressure>>>([]);
   const [healthStatus, setHealthStatus] = useState('');
   const [inputOpen, setInputOpen] = useState(false);
@@ -99,6 +102,9 @@ export default function ReportPage() {
         setHealthRevision(revision => revision + 1);
       }
     }
+    getTodayActivity()
+      .then(data => {setActivity(data); setActivityFailed(false);})
+      .catch(() => setActivityFailed(true));
     try {
       setBloodPressure(await getTodayBloodPressure());
     } catch {
@@ -177,7 +183,7 @@ export default function ReportPage() {
     <View style={styles.healthGrid}>
       <HealthCard
         title="오늘 걸음수"
-        value={formatNumber(healthData?.stepsTotal)}
+        value={formatNumber(activity?.stepsTotal ?? undefined)}
         unit="걸음"
         selected={selectedMetric === 'steps'}
         onPress={() => {setSelectedMetric('steps'); setInputOpen(false);}}
@@ -185,7 +191,7 @@ export default function ReportPage() {
 
       <HealthCard
         title="수면시간"
-        value={formatSleep(healthData?.latestSleepMinutes)}
+        value={formatSleep(activity?.latestSleepMinutes)}
         selected={selectedMetric === 'sleep'}
         onPress={() => {setSelectedMetric('sleep'); setInputOpen(false);}}
       />
@@ -214,7 +220,7 @@ export default function ReportPage() {
       </View>
 
       {selectedMetric === 'steps' || selectedMetric === 'sleep'
-        ? <ActivityTrendCard key={selectedMetric} metric={selectedMetric} revision={healthRevision} />
+        ? <ActivityTrendCard key={selectedMetric} metric={selectedMetric} trend={activity?.[selectedMetric] ?? null} failed={activityFailed} />
         : <TrendChart selectedMetric={selectedMetric} healthData={{...healthData, bloodPressureSamples: pressureSamples}} />}
       <View style={styles.recordActions}>
         <Pressable accessibilityRole="button" disabled={syncing || saving} onPress={() => void loadHealthData(true)}
