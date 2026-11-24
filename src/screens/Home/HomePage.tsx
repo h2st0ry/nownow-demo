@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ScrollView, StyleSheet} from 'react-native';
+import {ScrollView, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useFocusEffect} from '@react-navigation/native';
 
@@ -22,7 +22,7 @@ const ROOM_MIN_HEIGHT = 440;
 const DETAIL_OPEN_DELAY = 900;
 
 // 캐릭터 키우기 게임 느낌의 홈: 레벨 카드 → 캐릭터 방(행동 아이콘 줄 · 선택지 · 캐릭터)
-export default function HomePage() {
+export default function HomePage({onOpenChat}: {onOpenChat?: () => void}) {
   const {theme} = useAppTheme();
   const {
     userMood,
@@ -44,6 +44,7 @@ export default function HomePage() {
   const [musicVideoId, setMusicVideoId] = useState<string | null>(null);
   // 선택지는 방 안(아이콘 줄 바로 아래)에 펼친다. 음악은 앨범 자켓, 나머지는 작은 버튼.
   const isMusicOpen = selectedAction === 'music';
+  const [pickerTop, setPickerTop] = useState(0);
 
   // 밥주기·음악은 고르자마자 배달앱·추천곡 창을 연다.
   const selectOption = (choice: string) => {
@@ -88,22 +89,31 @@ export default function HomePage() {
           mood={userMood}
           isInteracting={isInteracting}
           minHeight={ROOM_MIN_HEIGHT}
-          hideMessage={selectedAction !== null}>
-          <ActionBar
-            completedPreferences={userPreferences}
-            selectedAction={selectedAction}
-            onActionSelect={handleActionSelect}
-            onCancel={handleCancelOptions}
-          />
-          {isMusicOpen ? (
-            <MusicGenrePicker options={currentOptions} onSelect={selectMusic} />
-          ) : (
-            <OptionPicker
+          hideMessage={selectedAction !== null}
+          onPressMessage={onOpenChat}>
+          <View onLayout={event => {
+            const {y, height} = event.nativeEvent.layout;
+            setPickerTop(y + height);
+          }}>
+            <ActionBar
+              completedPreferences={userPreferences}
               selectedAction={selectedAction}
-              options={currentOptions}
-              onOptionSelect={selectOption}
+              onActionSelect={handleActionSelect}
+              onCancel={handleCancelOptions}
             />
-          )}
+          </View>
+          {/* 선택지(앨범 자켓 포함)는 아이콘 줄 아래에 떠 있게 해서, 열려도 캐릭터가 밀려 내려가지 않는다. */}
+          <View style={[styles.picker, {top: pickerTop}]} pointerEvents="box-none">
+            {isMusicOpen ? (
+              <MusicGenrePicker options={currentOptions} onSelect={selectMusic} />
+            ) : (
+              <OptionPicker
+                selectedAction={selectedAction}
+                options={currentOptions}
+                onOptionSelect={selectOption}
+              />
+            )}
+          </View>
         </CharacterStage>
 
         <PreferencesCard
@@ -118,6 +128,12 @@ export default function HomePage() {
 }
 
 const styles = StyleSheet.create({
+  picker: {
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    zIndex: 3,
+  },
   safeArea: {
     flex: 1,
   },

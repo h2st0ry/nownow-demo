@@ -1,19 +1,24 @@
 import React, {useEffect, useRef} from 'react';
-import {Animated, StyleSheet, View} from 'react-native';
+import {Animated, Pressable, StyleSheet, View} from 'react-native';
 
 import Text from '../../../components/AppText';
 import {shadows} from '../../../theme/shadows';
 import {useAppTheme} from '../../../theme/ThemeProvider';
-import {characterMessages} from '../constants/homeContent';
+import {useCharacterName} from '../../../context/CharacterNameProvider';
 import type {MoodType} from '../types';
 
 interface CharacterMessageProps {
   userMood: MoodType;
+  // 말풍선을 누르면 채팅 탭으로
+  onPress?: () => void;
 }
 
-// 캐릭터 머리 위 말풍선. 기분이 바뀌면 톡 튀어나온다.
-export default function CharacterMessage({userMood}: CharacterMessageProps) {
+// 캐릭터 머리 위 말풍선. 기분이 바뀌면 톡 튀어나오고, 누르면 채팅으로 간다.
+export default function CharacterMessage({userMood, onPress}: CharacterMessageProps) {
   const {theme} = useAppTheme();
+  const {characterName} = useCharacterName();
+  const firstLine = '오늘 하루는 어땠어??';
+  const secondLine = `${characterName}에게 말해줘!`;
   const popAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -45,11 +50,14 @@ export default function CharacterMessage({userMood}: CharacterMessageProps) {
           ],
         },
       ]}>
-      <View style={[styles.bubble, {backgroundColor: theme.surface}]}>
-        <Text style={[styles.message, {color: theme.text}]}>
-          {characterMessages[userMood]}
-        </Text>
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${firstLine} ${secondLine} 채팅 열기`}
+        disabled={!onPress}
+        onPress={onPress}
+        style={({pressed}) => [styles.bubble, {backgroundColor: theme.surface}, pressed && styles.pressed]}>
+        <Text style={[styles.message, {color: theme.text}]}>{firstLine}{'\n'}{secondLine}</Text>
+      </Pressable>
       <View style={[styles.tail, {borderTopColor: theme.surface}]} />
     </Animated.View>
   );
@@ -64,6 +72,9 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 18,
     paddingVertical: 10,
+  },
+  pressed: {
+    transform: [{scale: 0.96}],
   },
   message: {
     fontSize: 14,

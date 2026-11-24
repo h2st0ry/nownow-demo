@@ -21,6 +21,7 @@ import {useChatDiary} from './hooks/useChatDiary';
 import {useKeyboardVisible} from '../../hooks/useKeyboardVisible';
 import {useAppTheme} from '../../theme/ThemeProvider';
 import type {MoodType} from '../Home/types';
+import {usePersonalize} from '../../context/CharacterNameProvider';
 
 interface ChatPageProps {
   date?: string;
@@ -45,6 +46,7 @@ const formatChatDate = (date?: string) => {
 
 export default function ChatPage({date, invite, mood, onBack}: ChatPageProps) {
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const scrollViewRef = useRef<ScrollView>(null);
   const {messages, input, setInput, handleSend, handleButtonClick, error, busy, editingKeywords, closeKeywords, addKeywords, openHealthRecord, offerSummary} =
     useChatDiary(mood);
@@ -112,7 +114,7 @@ export default function ChatPage({date, invite, mood, onBack}: ChatPageProps) {
           </ScrollView>
 
           {!!error && <Text accessibilityRole="alert" style={{color: theme.text}}>{error}</Text>}
-          {busy && <Text style={{color: theme.textMuted}}>뿡뿡이가 답변을 준비하고 있어요.</Text>}
+          {busy && <Text style={{color: theme.textMuted}}>{p('뿡뿡이가 답변을 준비하고 있어요.')}</Text>}
           <ChatInput value={input} onChangeText={setInput} onSend={() => void handleSend()} />
         </View>
       </KeyboardAvoidingView>

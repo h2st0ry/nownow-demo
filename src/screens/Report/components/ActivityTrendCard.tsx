@@ -1,40 +1,25 @@
-import React, {useEffect, useState} from 'react';
-import {NativeModules, StyleSheet, View} from 'react-native';
+import React from 'react';
+import {StyleSheet, View} from 'react-native';
+import type {ActivityTrend} from '../../../services/api/health';
 import Text from '../../../components/AppText';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {metricConfig} from '../constants/reportData';
+import CardHeader from './CardHeader';
 import ReportCard from './ReportCard';
+
 import AnimatedBar from './AnimatedBar';
 import TrendChart from './TrendChart';
 
-type Trend = {start: string; end: string; points: {time: string; value: number}[]};
 const HOUR_MS = 60 * 60 * 1000;
 const timeLabel = (ms: number) => new Date(ms).toLocaleTimeString('ko-KR', {
   hour: '2-digit', minute: '2-digit', hour12: false,
 });
 
-export default function ActivityTrendCard({metric, revision}: {metric: 'steps' | 'sleep'; revision: number}) {
+// 데모 앱: 시간대별 걸음 수·수면은 서버 기록(ReportPage가 불러온 값)으로 그린다.
+export default function ActivityTrendCard({metric, trend, failed}: {metric: 'steps' | 'sleep'; trend: ActivityTrend | null; failed: boolean}) {
   const {theme} = useAppTheme();
   const config = metricConfig[metric];
-  const [trend, setTrend] = useState<Trend | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    let active = true;
-    setTrend(null);
-    setError('');
-    const native = NativeModules.HealthConnectModule;
-    if (!native?.getActivityTrend) {
-      setError('시간대별 기록을 보려면 앱을 업데이트해 주세요.');
-      return;
-    }
-    native.getActivityTrend(metric).then((result: Trend) => {
-      if (active) setTrend(result);
-    }).catch(() => {
-      if (active) setError('Health Connect의 기록 읽기 권한을 확인해 주세요.');
-    });
-    return () => {active = false;};
-  }, [metric, revision]);
+  const error = failed ? '서버에서 기록을 불러오지 못했어요.' : '';
 
   if (metric === 'steps') {
     return <TrendChart selectedMetric="steps" hourlySteps={trend?.points} stepsStatus={error} />;
@@ -51,7 +36,7 @@ export default function ActivityTrendCard({metric, revision}: {metric: 'steps' |
   const total = [...points.values()].reduce((sum, value) => sum + value, 0);
 
   return <ReportCard>
-    <Text style={[styles.title, {color: theme.text}]}>{config.chartTitle}</Text>
+    <CardHeader title={config.chartTitle} />
     {trend && points.size > 0 ? <>
       {points.size > 0 && <Text style={[styles.summary, {color: theme.text}]}>{Math.round(total).toLocaleString()} {config.unit}</Text>}
       <Text style={{color: theme.textMuted}}>어제 {timeLabel(start)} ~ 오늘 {timeLabel(Date.parse(trend.end))}</Text>
@@ -77,8 +62,7 @@ export default function ActivityTrendCard({metric, revision}: {metric: 'steps' |
 }
 
 const styles = StyleSheet.create({
-  title: {fontSize: 17, fontWeight: '800', marginBottom: 10},
-  summary: {fontSize: 24, fontWeight: '800', marginBottom: 4},
+  summary: {fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: 2},
   chart: {height: 170, flexDirection: 'row', gap: 3, alignItems: 'flex-end', marginTop: 12},
   column: {flex: 1, justifyContent: 'flex-end'},
   valueLabel: {fontSize: 8, textAlign: 'center', marginBottom: 8, width: '100%'},

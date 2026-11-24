@@ -14,6 +14,7 @@ import {getTodayInteractions} from '../../../services/api/character';
 import {useAppTheme} from '../../../theme/ThemeProvider';
 import {interactionActions} from '../constants/homeContent';
 import type {PreferenceKey, UserPreferences} from '../types';
+import {usePersonalize} from '../../../context/CharacterNameProvider';
 
 interface ChoiceHistorySheetProps {
   visible: boolean;
@@ -52,6 +53,7 @@ interface DayChoices {
 // 레벨 뱃지를 누르면 올라오는 창: 날짜별로 뿡뿡이에게 고른 것들
 export default function ChoiceHistorySheet({visible, onClose}: ChoiceHistorySheetProps) {
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const insets = useSafeAreaInsets();
   const [days, setDays] = useState<DayChoices[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -104,7 +106,7 @@ export default function ChoiceHistorySheet({visible, onClose}: ChoiceHistoryShee
             {backgroundColor: theme.surface, paddingBottom: insets.bottom + 20},
           ]}>
           <View style={[styles.handle, {backgroundColor: theme.border}]} />
-          <Text style={[styles.title, {color: theme.text}]}>뿡뿡이와 함께한 기록</Text>
+          <Text style={[styles.title, {color: theme.text}]}>{p('뿡뿡이와 함께한 기록')}</Text>
 
           {failed ? (
             <Text style={[styles.notice, {color: theme.textMuted}]}>
@@ -114,7 +116,7 @@ export default function ChoiceHistorySheet({visible, onClose}: ChoiceHistoryShee
             <ActivityIndicator style={styles.loading} color={theme.accent} />
           ) : days.length === 0 ? (
             <Text style={[styles.notice, {color: theme.textMuted}]}>
-              아직 함께한 기록이 없어요. 오늘 뿡뿡이를 돌봐 줄래?
+              {p('아직 함께한 기록이 없어요. 오늘 뿡뿡이를 돌봐 줄래?')}
             </Text>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>

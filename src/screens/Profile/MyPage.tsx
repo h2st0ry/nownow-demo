@@ -23,10 +23,12 @@ import {checkBloodPressureBluetooth} from '../../services/bloodPressureBluetooth
 import {SCREEN_BOTTOM_INSET, SCREEN_HORIZONTAL_PADDING} from '../../theme/layout';
 import {useAppTheme} from '../../theme/ThemeProvider';
 import {DEFAULT_REMINDER_TIME, getReminderPreference, PLAY_DAYS, saveReminderPreference, WEATHER_CITIES, type ReminderSettings} from '../../services/notifications/dailyReminder';
+import {usePersonalize} from '../../context/CharacterNameProvider';
 
 export default function MyPage() {
   const {themeLabel, themeDescription, toggleThemeMode} = useThemePreference();
   const {theme} = useAppTheme();
+  const p = usePersonalize();
   const [userId, setUserId] = useState<string>();
   const [reminder, setReminder] = useState<ReminderSettings>({enabled: true, time: DEFAULT_REMINDER_TIME});
   const [reminderBusy, setReminderBusy] = useState(false);
@@ -129,7 +131,7 @@ export default function MyPage() {
         <ProfileHeader key={profileRevision} />
         <SettingsSection title="계정" items={[...accountMenus.map((item, index) =>
           ({...item, onPress: () => setPage(index === 0 ? 'account' : 'privacy')})), {
-          label: '뿡뿡이가 기억하는 것',
+          label: p('뿡뿡이가 기억하는 것'),
           description: 'MBTI와 좋아하는 활동·음악·음식',
           Icon: Heart,
           onPress: () => setPersonalizationOpen(true),
@@ -172,7 +174,7 @@ export default function MyPage() {
           Icon: Bell,
           toggle: {value: reminder.enabled, disabled: !userId || reminderBusy, onValueChange: enabled => updateReminder({enabled})},
         }]} />
-        <SettingsSection title="뿡뿡이 알림" items={[
+        <SettingsSection title={p('뿡뿡이 알림')} items={[
           {
             label: '날씨 한마디',
             description: reminder.weatherCity ? `${reminder.weatherCity} · 매일 오전 8시` : '지역을 고르면 아침 예보와 인사를 보내요',
@@ -185,7 +187,7 @@ export default function MyPage() {
               }},
           },
           {
-            label: '뿡뿡이의 놀자 알림',
+            label: p('뿡뿡이의 놀자 알림'),
             description: '오전 9시 · 정오 12시 · 오후 5시',
             Icon: Smile,
             onPress: () => setChoosePlayDays(value => !value),
@@ -193,7 +195,7 @@ export default function MyPage() {
               onValueChange: play => {setChoosePlayDays(play); void updateReminder({play});}},
           },
           {
-            label: '뿡뿡이의 안부',
+            label: p('뿡뿡이의 안부'),
             description: '기록 변화를 확인하면 앱을 열 때 하루 한 번 안부를 보내요',
             Icon: Heart,
             toggle: {value: Boolean(reminder.checkIn), disabled: !userId || reminderBusy,

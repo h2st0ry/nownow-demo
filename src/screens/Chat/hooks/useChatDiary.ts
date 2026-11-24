@@ -20,6 +20,7 @@ import {hasUrgentSymptoms, healthSafetyReply} from '../../../../shared/careSafet
 import {supabase} from '../../../services/supabase';
 import type {ChatAction, ChatStage, Message, MessageRole} from '../types';
 import type {MoodType} from '../../Home/types';
+import {usePersonalize} from '../../../context/CharacterNameProvider';
 
 const getCurrentMessageTime = () =>
   new Intl.DateTimeFormat('ko-KR', {
@@ -54,6 +55,7 @@ const isPositive = (message: string) => positiveExpression.test(message);
 const summaryChoices = [...summaryButtons, {label: '키워드 추가', action: 'summary_add_keywords' as const}];
 
 export const useChatDiary = (mood?: MoodType | null) => {
+  const p = usePersonalize();
   const [messages, setMessages] = useState<Message[]>(() => [
     createMessage('bot', mood === 'sad' || mood === 'neutral' ? chatScript.greeting
       : mood === 'happy' ? '오늘 기분이 좋다니 나도 기뻐! 어떤 일이 너를 웃게 했어?'
@@ -180,7 +182,7 @@ export const useChatDiary = (mood?: MoodType | null) => {
       void offerPreference(trimmedInput).then(preference => {
         if (!preference) return;
         const {key, label, value} = preference;
-        Alert.alert('뿡뿡이가 기억해둘까?', `${label} · ${value}\n저장하면 다음 답변이나 추천에 참고해요.`, [
+        Alert.alert(p('뿡뿡이가 기억해둘까?'), `${label} · ${value}\n저장하면 다음 답변이나 추천에 참고해요.`, [
           {text: '이번만', style: 'cancel'},
           {text: '기억해줘', onPress: () => {
             void savePreferences({[key]: value}).catch(() => Alert.alert('취향을 저장하지 못했어요.'));

@@ -1,7 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {BackHandler, Pressable, StyleSheet, View} from 'react-native';
+import {BackHandler, StyleSheet} from 'react-native';
 import Text from '../../../components/AppText';
-import {ChevronLeft} from 'lucide-react-native';
 import {format, parseISO} from 'date-fns';
 
 import {useAppTheme} from '../../../theme/ThemeProvider';
@@ -9,9 +8,11 @@ import {WEEKLY_REPORT_COUNT} from '../constants/reportData';
 import {getRecentWeeks} from '../utils/weekLabels';
 import {request} from '../../../services/api/client';
 import type {WeeklyReport as WeeklyReportData} from '../types';
+import DetailHeader from './DetailHeader';
 import PeakStressDayCard from './PeakStressDayCard';
+import ReportCard from './ReportCard';
 import StressKeywordCard from './StressKeywordCard';
-import WeeklyReportItem from './WeeklyReportItem';
+import WeeklyReportItem, {ReportList} from './WeeklyReportItem';
 import WeeklyStressChart from './WeeklyStressChart';
 
 type Week = ReturnType<typeof getRecentWeeks>[number];
@@ -75,35 +76,20 @@ function WeeklyReportDetail({week, onBack}: WeeklyReportDetailProps) {
 
   return (
     <>
-      <View style={[styles.detailHeader, {backgroundColor: theme.surface}]}>
-        <Pressable
-          onPress={onBack}
-          style={({pressed}) => [
-            styles.backButton,
-            pressed && {backgroundColor: theme.pressed},
-          ]}>
-          <ChevronLeft color={theme.text} size={22} />
-        </Pressable>
-
-        <View style={styles.weekInfo}>
-          <Text style={[styles.weekLabel, {color: theme.text}]}>
-            {week.label}
-          </Text>
-          <Text style={[styles.weekRange, {color: theme.textMuted}]}>
-            {report ? formatRange(report.weekStart, report.weekEnd) : ''}
-          </Text>
-        </View>
-
-        <View style={styles.backButton} />
-      </View>
+      <DetailHeader
+        backLabel="주간"
+        onBack={onBack}
+        title={week.label}
+        subtitle={report ? formatRange(report.weekStart, report.weekEnd) : undefined}
+      />
 
       {report?.days.length ? <WeeklyStressChart
         days={report.days}
         highlightedDates={highlightedDates}
         animationKey={week.key}
-      /> : <Text style={{color: theme.textMuted}}>{unavailable
+      /> : <ReportCard><Text style={[styles.muted, {color: theme.textMuted}]}>{unavailable
         ? '주간 기록을 불러오지 못했어요. 서버 연결을 확인해 주세요.'
-        : report ? '이 주에 표시할 스트레스 기록이 없어요.' : '주간 기록을 불러오고 있어요…'}</Text>}
+        : report ? '이 주에 표시할 스트레스 기록이 없어요.' : '주간 기록을 불러오고 있어요…'}</Text></ReportCard>}
 
       {report && <StressKeywordCard
         causes={report.causes}
@@ -116,10 +102,15 @@ function WeeklyReportDetail({week, onBack}: WeeklyReportDetailProps) {
   );
 }
 
-export default function WeeklyReport() {
+export default function WeeklyReport({onDetailChange}: {onDetailChange?: (open: boolean) => void}) {
   const weeks = useMemo(() => getRecentWeeks(WEEKLY_REPORT_COUNT), []);
   const [selectedWeek, setSelectedWeek] = useState<Week | null>(null);
   const handleBack = useCallback(() => setSelectedWeek(null), []);
+
+  // 상세 화면이 열리고 닫히는 걸 리포트 화면에 알린다 (맨 위 제목·탭 숨김용)
+  useEffect(() => {
+    onDetailChange?.(selectedWeek !== null);
+  }, [selectedWeek, onDetailChange]);
 
   if (selectedWeek) {
     return (
@@ -131,43 +122,21 @@ export default function WeeklyReport() {
   }
 
   return (
-    <>
-      {weeks.map(week => (
+    <ReportList>
+      {weeks.map((week, index) => (
         <WeeklyReportItem
           key={week.key}
           title={week.label}
+          last={index === weeks.length - 1}
           onPress={() => setSelectedWeek(week)}
         />
       ))}
-    </>
+    </ReportList>
   );
 }
 
 const styles = StyleSheet.create({
-  detailHeader: {
-    alignItems: 'center',
-    borderRadius: 16,
-    flexDirection: 'row',
-    paddingHorizontal: 6,
-    paddingVertical: 8,
-  },
-  backButton: {
-    alignItems: 'center',
-    borderRadius: 18,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  weekInfo: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  weekLabel: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  weekRange: {
-    fontSize: 12,
-    marginTop: 2,
+  muted: {
+    fontSize: 14,
   },
 });

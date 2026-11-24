@@ -14,7 +14,6 @@ import {
   View,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import Text from '../components/AppText';
 
 import {useKeyboardVisible} from '../hooks/useKeyboardVisible';
 import ChatPage from '../screens/Chat/ChatPage';
@@ -25,6 +24,8 @@ import {TAB_BAR} from '../theme/layout';
 import {useAppTheme} from '../theme/ThemeProvider';
 
 type TabKey = 'Home' | 'Chat' | 'Report' | 'Settings';
+
+const ICON_SIZE = 30;
 
 const tabs: {
   key: TabKey;
@@ -56,7 +57,7 @@ const renderScreen = (activeTab: TabKey, setActiveTab: (tab: TabKey) => void, in
     return <MyPage />;
   }
 
-  return <HomePage />;
+  return <HomePage onOpenChat={() => setActiveTab('Chat')} />;
 };
 
 export default function TabNavigator() {
@@ -138,23 +139,16 @@ export default function TabNavigator() {
           return (
             <Pressable
               key={key}
+              // 글자는 숨기고 아이콘만 보인다. 이름은 화면 읽기용으로 남긴다.
+              accessibilityLabel={label}
+              accessibilityRole="tab"
+              accessibilityState={{selected: focused}}
               onPress={() => setActiveTab(key)}
               style={({pressed}) => [
                 styles.tabItem,
                 pressed && styles.pressedTabItem,
               ]}>
-              <View style={styles.iconWrap}>
-                <Icon color={iconColor} size={22} />
-              </View>
-              <Text
-                style={[
-                  styles.label,
-                  {color: theme.icon},
-                  focused && styles.activeLabel,
-                  focused && {color: theme.text},
-                ]}>
-                {label}
-              </Text>
+              <Icon color={iconColor} size={ICON_SIZE} strokeWidth={focused ? 2.4 : 2} />
             </Pressable>
           );
         })}
@@ -195,20 +189,5 @@ const styles = StyleSheet.create({
   },
   pressedTabItem: {
     opacity: 0.7,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    borderRadius: 20,
-    height: 25,
-    justifyContent: 'center',
-    width: 42,
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: '500',
-    marginTop: 0,
-  },
-  activeLabel: {
-    fontWeight: '700',
   },
 });

@@ -274,7 +274,11 @@ async function main() {
   await apply(supabase, user);
 }
 
-main().catch(error => {
-  console.error(error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch(error => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { rng, seedOf, steps, sleep, findUser, DATA_ORIGIN };

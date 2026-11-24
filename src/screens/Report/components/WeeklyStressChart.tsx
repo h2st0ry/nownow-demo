@@ -17,6 +17,7 @@ import {
   stressLevels,
 } from '../constants/reportData';
 import type {DailyStress} from '../types';
+import CardHeader from './CardHeader';
 import ReportCard from './ReportCard';
 
 const CHART_HEIGHT = 160;
@@ -81,18 +82,15 @@ export default function WeeklyStressChart({
 
   return (
     <ReportCard>
-      <View style={styles.header}>
-        <Text style={[styles.title, {color: theme.text}]}>
-          일일 스트레스 지수 변화
-        </Text>
-        <Text style={[styles.average, {color: theme.textMuted}]}>
-          주간 평균{' '}
-          <Text
-            style={[styles.averageValue, {color: theme[averageLevel.colorKey]}]}>
+      <CardHeader
+        title="날짜별 스트레스"
+        right={<Text style={[styles.average, {color: theme.textMuted}]}>
+          평균{' '}
+          <Text style={[styles.averageValue, {color: theme[averageLevel.colorKey]}]}>
             {averageLevel.label}
           </Text>
-        </Text>
-      </View>
+        </Text>}
+      />
 
       <Animated.View
         onLayout={handleLayout}
@@ -186,23 +184,12 @@ export default function WeeklyStressChart({
 }
 
 const styles = StyleSheet.create({
-  header: {
-    alignItems: 'flex-end',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
   average: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
   },
   averageValue: {
-    fontSize: 15,
-    fontWeight: '800',
+    fontSize: 13,
+    fontWeight: '700',
   },
   chart: {
     height: CHART_HEIGHT,
