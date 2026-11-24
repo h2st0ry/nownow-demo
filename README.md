@@ -137,21 +137,96 @@ NowNow는 **항상 차고 있는 스마트워치**로 스트레스를 꾸준히 
 - **음악 추천**: 백엔드가 YouTube Data API v3로 장르별 곡을 찾아요.
 - AI 서버 주소 · 토큰, OpenAI · YouTube 키는 백엔드 `.env`에만 두고 앱에는 넣지 않아요.
 
-### 백엔드 API
 
-| 경로 | 하는 일 |
+## 🧩 백엔드
+
+Node.js 22 + Express 5 서버예요. Supabase(PostgreSQL · Auth)를 DB로 쓰고, AI 답변은 AI 서버(Cloudflare Worker)로 중계해요.
+
+### 핵심 동작
+- **인증**: `Authorization: Bearer <Supabase access_token>`을 [`requireUser`](backend/middleware/requireUser.js)가 확인해요. 요청 body나 query에 담긴 `user_id`는 믿지 않고 토큰의 사용자만 써요. (`/api/auth`의 로그인·회원가입만 토큰 없이 열려 있어요.)
+- **채팅 답변 흐름**: 건강 기록 조회 → 대화 기억 검색 → 취향·대화 이력 정리 → AI 서버 중계 순서로 처리해요. 위험한 수치나 표현은 안전 가드레일([`shared/careSafety.js`](shared/careSafety.js))이 먼저 걸러요. ([`chatController.js`](backend/controllers/chatController.js))
+- **대화 기억**: 하루 요약을 저장하면 바로 임베딩(`text-embedding-3-small`, 1536차원)해서 `memory_embeddings`에 넣고, 질문과 가까운 요약 최대 3개를 찾아 챗봇에 넘겨요. `OPENAI_API_KEY`가 없으면 이 단계는 건너뛰어요. ([`chatMemorySearch.js`](backend/services/chatMemorySearch.js))
+- **스트레스 계산**: DB 없이 계산만 하는 순수 함수예요. ([`stressCalculator.js`](backend/services/stressCalculator.js))
+  ```
+  RealtimeStress        = 0.6 × HRScore + 0.4 × PHRVScore            (1시간 단위)
+  DailyRealtimeStress   = 0.5 × 평균 + 0.3 × 고스트레스 비율 + 0.2 × 최댓값
+  DailyStress           = 0.8 × DailyRealtimeStress + 0.1 × BPScore + 0.1 × StepScore
+  FinalDailyStressScore = DailyStress × SleepFactor                   (최대 100)
+  ```
+  - 한 시간에 심박수 샘플이 3개 이상 있어야 계산해요. 70점 이상은 고스트레스로 세요.
+  - 수면 기록이 워치와 폰에서 겹치면 겹친 구간은 한 번만 세요.
+- **캐릭터 레벨**: 하루(KST)에 종류마다 한 번씩만 경험치를 줘요. 채팅 50, 밥주기 30, 음악 30, 놀이 10, 휴식 10이고, Lv.N → N+1에는 `N × 100`이 필요해요. ([`characterLevel.js`](backend/services/characterLevel.js))
+- **음악 추천**: YouTube Data API v3로 공식 음원을 골라요. 하루 검색 한도 때문에 오늘 고른 곡은 메모리에 캐시해 재사용해요(서버를 다시 켜면 비워져요). ([`musicService.js`](backend/services/musicService.js))
+- **오늘의 안부**: 최근 14일 점수의 평균보다 오늘(없으면 어제) 점수가 5점 이상 높으면 채팅 화면에서 안부를 건네요. ([`personalHealthCheck.js`](backend/services/personalHealthCheck.js))
+
+### API 엔드포인트
+
+| 경로 | 메서드 | 하는 일 |
+|---|---|---|
+| `/api/auth/signup` · `/login` | POST | 회원가입 · 로그인 |
+| `/api/auth/me` | GET · PATCH | 내 정보 조회 · 수정 |
+| `/api/me/profile` | POST | 프로필 생성 확인 |
+| `/api/me/settings` | GET · PUT | 설정(스트레스 감지 기준, 알림 등) |
+| `/api/me/push-tokens` | POST · DELETE `/:token` | 푸시 토큰 저장 · 삭제 |
+| `/api/me` | DELETE | 계정 삭제 |
+| `/api/health/records` | POST | Health Connect 기록 증분 저장 (심박수 · 혈압 · 산소 · 걸음 수 · 수면 · 삭제분) |
+| `/api/health/blood-pressure` · `/today-activity` | GET | 오늘의 혈압 · 활동량 |
+| `/api/chat/reply` | POST | AI 답변 중계 |
+| `/api/chat/messages` | POST · GET · DELETE `/:chat_id` | 대화 저장 · 조회 · 삭제 |
+| `/api/chat/summary` | POST · GET | 하루 요약 저장(키워드 포함, 최대 10개) · 조회 |
+| `/api/chat/check-in` | GET | 오늘의 안부 확인 |
+| `/api/reports` | POST · GET | 리포트 저장 · 목록 |
+| `/api/reports/:health_record_id` | GET · DELETE | 리포트 상세 · 삭제 |
+| `/api/reports/weekly` · `/weekly/:weekStart` | GET | 주간 리포트 목록 · 상세 |
+| `/api/reports/monthly/:month` | GET | 월간 리포트 |
+| `/api/reports/stress-causes` · `/stress-analysis` | GET | 스트레스 원인 집계 · 분석 |
+| `/api/reports/recommendation` · `/ai-recommendation` | GET · POST | 추천 조회 · AI 추천 생성 |
+| `/api/stress/realtime` · `/daily` | GET | 시간대별 · 일일 스트레스 점수 (`?date=`) |
+| `/api/moods/:date` | GET · PUT | 하루 기분 조회 · 기록 |
+| `/api/character/interactions` | POST · GET | 캐릭터 행동 저장 · 조회 |
+| `/api/character/level` | GET | 레벨 · 경험치 |
+| `/api/music/recommendation` | GET | 장르별 오늘의 곡 (`?choice=`) |
+
+### 스케줄러 · 스크립트
+
+| 파일 | 하는 일 |
 |---|---|
-| `/api/auth` | 회원가입 · 로그인 |
-| `/api/me` | 내 프로필 · 취향 · 설정 |
-| `/api/health` | 건강 기록 저장(증분 동기화) · 조회 |
-| `/api/chat` | 대화 저장 · AI 답변 중계 · 하루 요약 |
-| `/api/reports` | 실시간 · 주간 리포트, AI 추천 |
-| `/api/stress` | 스트레스 점수 |
-| `/api/moods` | 기분 기록 |
-| `/api/character` | 홈 캐릭터 행동(밥주기 · 놀이 · 음악 · 휴식) 저장 |
-| `/api/music` | 장르별 추천곡 |
+| [`jobs/dailyStressScheduler.js`](backend/jobs/dailyStressScheduler.js) | 서버가 켜져 있는 동안 **매일 03:00(KST)** 어제 점수를 계산해 저장해요. 서버를 켤 때는 최근 3일을 한 번 보충 계산해요. 같은 날을 다시 계산해도 덮어쓰기라 안전해요. |
+| `scripts/dailyStressBatch.js` | 놓친 날을 수동으로 계산해요. `node scripts/dailyStressBatch.js [YYYY-MM-DD]` (날짜를 비우면 어제) |
+| `scripts/seedDemo.js` | 데모 계정에 30일치 건강 기록 · 채팅을 넣고 지워요. 이야기 내용은 `demoScenario.js`에 있어요. |
 
-자세한 요청 · 응답은 [`docs/backend-api-requirements.md`](docs/backend-api-requirements.md)에 있어요.
+- 선택 환경변수: `STRESS_BATCH_DISABLED=true`(예약 끄기), `STRESS_BATCH_CATCHUP_DAYS`(시작 때 보충할 날 수, 기본 3, 0이면 안 함)
+- 스케줄러는 `SUPABASE_SERVICE_ROLE_KEY`가 없으면 예약하지 않아요.
+
+### DB 마이그레이션
+
+[`backend/db/migrations/`](backend/db/migrations)의 SQL을 날짜 순서대로 Supabase SQL Editor에서 실행해요.
+
+| 파일 | 내용 |
+|---|---|
+| `20261027_missing_tables.sql` | `sleep_records` · `daily_stress_scores` · `daily_moods` · `character_interactions` · `push_tokens` 등 생성, RLS 활성화 |
+| `20261027_health_raw_policies.sql` | 건강 기록 raw 테이블 접근 정책 |
+| `20261105_chat_summary_vector_search.sql` | 대화 요약 의미 검색 함수 `match_nownow_chat_memories` |
+| `20261111_health_sync_source.sql` | 증분 동기화용 출처(`source_record_id`) 컬럼 · 인덱스 |
+| `20261117_chat_messages_created_at_default.sql` | 채팅 메시지 시각 기본값 |
+| `20261118_memory_search_tuning.sql` | 대화 기억 검색 조정 |
+
+### 폴더 구조
+
+```
+backend/
+├─ server.js          # 진입점 · 라우터 등록 · 스케줄러 시작
+├─ config/            # Supabase 클라이언트
+├─ middleware/        # requireUser (토큰 확인)
+├─ routes/            # 경로 → 컨트롤러 연결
+├─ controllers/       # 요청 검증 · 응답
+├─ services/          # 비즈니스 로직 (스트레스 계산 · 대화 기억 · AI 중계 · 리포트 등)
+├─ utils/             # KST 날짜 · 채팅 이력 · 음악 검색 · 건강 기록 파싱
+├─ jobs/              # 매일 새벽 스트레스 계산 예약
+├─ scripts/           # 수동 계산 · 데모 데이터
+├─ db/migrations/     # Supabase SQL
+└─ tests/             # node --test 자동 테스트 (17개 파일)
+```
 
 ## 🚀 실행 방법
 
