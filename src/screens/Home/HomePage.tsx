@@ -10,6 +10,9 @@ import ActionBar from './components/ActionBar';
 import LevelBar from './components/LevelBar';
 import ChoiceHistorySheet from './components/ChoiceHistorySheet';
 import MusicGenrePicker from './components/MusicGenrePicker';
+import MailboxButton from './components/MailboxButton';
+import MailboxSheet from './components/MailboxSheet';
+import {useMailbox} from './hooks/useMailbox';
 import type {MusicTrack} from '../../services/api/music';
 import {useCharacterHome} from './hooks/useCharacterHome';
 import {SCREEN_HORIZONTAL_PADDING} from '../../theme/layout';
@@ -38,6 +41,9 @@ export default function HomePage({onOpenChat}: {onOpenChat?: () => void}) {
   } = useCharacterHome();
   const [detailKey, setDetailKey] = useState<PreferenceKey | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // 우체통: 월간 스트레스 리포트를 편지로 받는다.
+  const mailbox = useMailbox();
+  const [mailboxOpen, setMailboxOpen] = useState(false);
   // 채팅 탭에서 돌아오면 채팅 경험치가 붙었을 수 있어 레벨을 다시 받는다.
   useFocusEffect(refreshLevel);
   // 홈에서 앨범 자켓을 눌러 고른 곡. 추천곡 창에서 그 곡이 골라진 채로 열린다.
@@ -68,6 +74,17 @@ export default function HomePage({onOpenChat}: {onOpenChat?: () => void}) {
     <SafeAreaView
       style={[styles.safeArea, {backgroundColor: theme.background}]}
       edges={['top']}>
+      {mailboxOpen ? (
+        <MailboxSheet
+          visible
+          onClose={() => setMailboxOpen(false)}
+          letters={mailbox.letters}
+          draft={mailbox.draft}
+          nextDelivery={mailbox.nextDelivery}
+          loaded={mailbox.loaded}
+          onRead={mailbox.markRead}
+        />
+      ) : (
       <ScrollView
         alwaysBounceVertical
         keyboardShouldPersistTaps="handled"
@@ -90,7 +107,8 @@ export default function HomePage({onOpenChat}: {onOpenChat?: () => void}) {
           isInteracting={isInteracting}
           minHeight={ROOM_MIN_HEIGHT}
           hideMessage={selectedAction !== null}
-          onPressMessage={onOpenChat}>
+          onPressMessage={onOpenChat}
+          corner={<MailboxButton hasUnread={mailbox.hasUnread} onPress={() => setMailboxOpen(true)} />}>
           <View onLayout={event => {
             const {y, height} = event.nativeEvent.layout;
             setPickerTop(y + height);
@@ -116,6 +134,7 @@ export default function HomePage({onOpenChat}: {onOpenChat?: () => void}) {
           </View>
         </CharacterStage>
       </ScrollView>
+      )}
       {/* 아래에서 올라오는 창(Modal)이라 스크롤 영역 밖에 둔다. 안에 두면 방과 탭바 사이에 틈이 생긴다. */}
       <PreferencesCard
         preferences={userPreferences}
