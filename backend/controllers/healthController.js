@@ -10,6 +10,15 @@ async function getTodayBloodPressure(req, res) {
   }
 }
 
+async function getTodayActivity(req, res) {
+  try {
+    const data = await healthService.getTodayActivity(req.user.id);
+    res.json({ data });
+  } catch {
+    res.status(500).json({ message: "오늘 걸음 수·수면 기록을 불러오지 못했습니다." });
+  }
+}
+
 async function saveRecords(req, res) {
   try {
     const { records, stepsReplace, deleted, skipped, error: validationError } = parseHealthRecords(req.body);
@@ -42,5 +51,6 @@ async function saveRecords(req, res) {
 
 module.exports = {
   getTodayBloodPressure,
+  getTodayActivity,
   saveRecords
 };

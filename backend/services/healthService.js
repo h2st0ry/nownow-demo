@@ -1,12 +1,65 @@
 const supabase = require("../config/supabase");
 const fetchAll = require("../utils/fetchAll");
-const { kstDayRange, kstToday } = require("../utils/kstDate");
+const { kstDateOf, kstDayRange, kstToday } = require("../utils/kstDate");
 
 function getTodayBloodPressure(userId) {
   const { start, end } = kstDayRange(kstToday());
   return fetchAll(() => supabase.from("blood_pressure_records")
     .select("measured_at,systolic,diastolic").eq("user_id", userId)
     .gte("measured_at", start).lt("measured_at", end).order("measured_at"));
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+// 휴대폰 헬스 커넥트 대신 서버 기록으로 오늘 걸음 수·수면을 돌려준다(데모 앱 실시간 탭용).
+// 모양은 앱 HealthConnectModule.getActivityTrend / getHealthData와 같다.
+// - 걸음: 오늘 0시~지금, 1시간 단위. 진행 중인 시간은 지난 만큼만 센다(미리 넣어 둔 기록이 미래를 보여 주지 않게).
+// - 수면: 최근 24시간, 1시간 단위 수면 분 + 가장 최근에 끝난 수면 세션 길이
+async function getTodayActivity(userId, now = Date.now()) {
+  const dayStart = Date.parse(kstDayRange(kstDateOf(now)).start);
+  const sleepStart = now - 24 * HOUR_MS;
+  const nowIso = new Date(now).toISOString();
+
+  const [stepRows, sleepRows] = await Promise.all([
+    fetchAll(() => supabase.from("steps_records")
+      .select("start_time,end_time,count").eq("user_id", userId)
+      .gte("start_time", new Date(dayStart).toISOString()).lte("start_time", nowIso).order("start_time")),
+    fetchAll(() => supabase.from("sleep_records")
+      .select("start_time,end_time").eq("user_id", userId)
+      .gt("end_time", new Date(sleepStart).toISOString()).lte("start_time", nowIso).order("start_time"))
+  ]);
+
+  const stepsByHour = new Map();
+  for (const row of stepRows) {
+    const from = Date.parse(row.start_time);
+    const to = Date.parse(row.end_time);
+    const share = to > from && now < to ? Math.max(0, (now - from) / (to - from)) : 1;
+    const hour = dayStart + Math.floor((from - dayStart) / HOUR_MS) * HOUR_MS;
+    stepsByHour.set(hour, (stepsByHour.get(hour) ?? 0) + Math.round(row.count * share));
+  }
+  const stepPoints = [...stepsByHour].sort(([a], [b]) => a - b)
+    .map(([hour, value]) => ({ time: new Date(hour).toISOString(), value }));
+
+  const sleepPoints = [];
+  for (let hour = 0; hour < 24; hour += 1) {
+    const from = sleepStart + hour * HOUR_MS;
+    const to = Math.min(from + HOUR_MS, now);
+    let ms = 0;
+    for (const row of sleepRows) {
+      ms += Math.max(0, Math.min(to, Date.parse(row.end_time)) - Math.max(from, Date.parse(row.start_time)));
+    }
+    if (ms > 0) sleepPoints.push({ time: new Date(from).toISOString(), value: ms / 60000 });
+  }
+  const finished = sleepRows.filter(row => Date.parse(row.end_time) <= now)
+    .sort((a, b) => Date.parse(a.end_time) - Date.parse(b.end_time));
+  const latest = finished[finished.length - 1];
+
+  return {
+    stepsTotal: stepRows.length ? stepPoints.reduce((sum, point) => sum + point.value, 0) : null,
+    latestSleepMinutes: latest ? Math.round((Date.parse(latest.end_time) - Date.parse(latest.start_time)) / 60000) : 0,
+    steps: { start: new Date(dayStart).toISOString(), end: nowIso, points: stepPoints },
+    sleep: { start: new Date(sleepStart).toISOString(), end: nowIso, points: sleepPoints }
+  };
 }
 
 // 종류별 테이블과 중복 판단 기준. 같은 시각(구간)의 기록을 다시 보내면 덮어쓴다.
@@ -84,6 +137,7 @@ async function saveRecords(user_id, records, { stepsReplace = null, deleted = []
 }
 
 module.exports = {
+  getTodayActivity,
   getTodayBloodPressure,
   saveRecords
 };
